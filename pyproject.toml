@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "habitus-ai"
+version = "0.2.0"
+description = "Habitus AI: A dual-cipher, conserved-weight agentic memory substrate"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.11"
+authors = [{name = "HUMAN Project"}]
+dependencies = []
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+vector-stores = ["chromadb", "pinecone-client", "psycopg[binary]", "pgvector"]
+
+[project.scripts]
+habitus-demo = "habitus_ai.demo:main"
+habitus-gestate = "habitus_ai.cli:gestate_main"
+habitus-hatch = "habitus_ai.cli:hatch_main"
+habitus-launch = "habitus_ai.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-q"
