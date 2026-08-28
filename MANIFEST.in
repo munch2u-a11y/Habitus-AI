@@ -1,0 +1,4 @@
+include ARCHITECTURE.md
+include README.md
+include LICENSE
+recursive-include tests *.py

@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "base-agentic-memory-rag"
+version = "0.2.0"
+description = "A dual-cipher, conserved-weight agentic memory and RAG substrate"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+authors = [{name = "HUMAN Project"}]
+dependencies = []
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+vector-stores = ["chromadb", "pinecone-client", "psycopg[binary]", "pgvector"]
+
+[project.scripts]
+agentic-memory-demo = "agentic_memory_rag.demo:main"
+agentic-memory-gestate = "agentic_memory_rag.cli:gestate_main"
+agentic-memory-hatch = "agentic_memory_rag.cli:hatch_main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-q"
