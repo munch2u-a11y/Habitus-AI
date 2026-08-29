@@ -143,7 +143,7 @@ def test_child_concepts_have_zero_lexical_terms_and_zero_embedding():
 
         # Query all child concepts
         children = conn.execute(
-            "SELECT concept_id, label, kind, terms_json, embedding_json, vault_id FROM concepts WHERE kind = 'child'"
+            "SELECT * FROM concepts WHERE kind = 'child'"
         ).fetchall()
         assert len(children) > 0, f"Expected child nodes in {db_path}, found 0"
 
@@ -163,7 +163,7 @@ def test_child_concepts_have_zero_lexical_terms_and_zero_embedding():
             assert math.isclose(sum(x * x for x in embedding), 0.0), f"Child {concept_id} L2 norm != 0.0"
 
             # Verify structural map or lower-vault is present
-            assert row["structural_map_json"] is not None or row["vault_id"] == f"lower-vault:{concept_id}"
+            assert dict(row).get("structural_map_json") is not None or dict(row).get("vault_id") == f"lower-vault:{concept_id}"
 
         # Also inspect Python object deserialization
         embedder = gestation.NativeMassEmbedder(gestation.nursery.MODEL, gestation.nursery.CODEC)
