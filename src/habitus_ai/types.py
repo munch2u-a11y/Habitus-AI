@@ -67,6 +67,23 @@ class MemoryRecord:
 
 
 @dataclass(frozen=True)
+class StructuralRelation:
+    source_node_id: str
+    target_node_id: str
+    coactivation_density: float
+    direction: str = "bidirectional"
+
+
+@dataclass(frozen=True)
+class StructuralMiniMap:
+    map_id: str
+    parent_node_ids: tuple[str, ...]
+    child_node_ids: tuple[str, ...]
+    relations: tuple[StructuralRelation, ...]
+    total_coactivations: int
+
+
+@dataclass(frozen=True)
 class ConceptNode:
     concept_id: str
     label: str
@@ -76,6 +93,9 @@ class ConceptNode:
     vault_id: str | None
     created_pulse: int
     last_active_pulse: int
+    structural_map: StructuralMiniMap | None = None
+    invocation_count: int = 0
+    softmax_weight: float = 1.0
 
 
 @dataclass(frozen=True)
@@ -90,6 +110,8 @@ class GraphEdge:
     last_active_time: float | None
     created_pulse: int
     archived: bool = False
+    invocation_count: int = 0
+    softmax_weight: float = 1.0
 
 
 @dataclass(frozen=True)

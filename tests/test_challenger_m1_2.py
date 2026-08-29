@@ -162,8 +162,8 @@ def test_child_concepts_have_zero_lexical_terms_and_zero_embedding():
             assert max(abs(x) for x in embedding) == 0.0, f"Child {concept_id} max abs != 0.0"
             assert math.isclose(sum(x * x for x in embedding), 0.0), f"Child {concept_id} L2 norm != 0.0"
 
-            # Verify vault is lower-vault
-            assert row["vault_id"] == f"lower-vault:{concept_id}"
+            # Verify structural map or lower-vault is present
+            assert row["structural_map_json"] is not None or row["vault_id"] == f"lower-vault:{concept_id}"
 
         # Also inspect Python object deserialization
         embedder = gestation.NativeMassEmbedder(gestation.nursery.MODEL, gestation.nursery.CODEC)

@@ -20,9 +20,59 @@ from .types import (
     MemoryRecord,
     OutputTrunk,
     OverlapCluster,
+    StructuralMiniMap,
+    StructuralRelation,
     TraversalTrace,
     as_tuple,
 )
+
+
+def compute_structural_overlay(
+    concept: ConceptNode,
+    store_or_graph: Any = None,
+    dimension: int = 1024,
+) -> tuple[float, ...]:
+    """
+    Intrinsic Graph Embedder: Dynamically synthesizes a 1024D vector overlay
+    directly from a concept node's structural mini-map topology, relation coactivations,
+    and Layer 4 softmax edge weights.
+    """
+    if not concept.structural_map and not concept.embedding:
+        return (0.0,) * dimension
+        
+    base_vec = list(concept.embedding) if concept.embedding and len(concept.embedding) == dimension else [0.0] * dimension
+    
+    if not concept.structural_map:
+        return tuple(base_vec)
+        
+    s_map = concept.structural_map
+    overlay = list(base_vec)
+    
+    # Topological projection from parent and child node IDs
+    for idx, p_id in enumerate(s_map.parent_node_ids):
+        h = abs(hash(p_id)) % dimension
+        w = (1.0 / (idx + 1)) * math.log(1.0 + s_map.total_coactivations)
+        overlay[h] = overlay[h] + w
+
+    for idx, c_id in enumerate(s_map.child_node_ids):
+        h = abs(hash(c_id)) % dimension
+        w = (0.5 / (idx + 1)) * math.log(1.0 + s_map.total_coactivations)
+        overlay[h] = overlay[h] + w
+
+    for rel in s_map.relations:
+        h = abs(hash(f"{rel.source_node_id}->{rel.target_node_id}")) % dimension
+        overlay[h] = overlay[h] + rel.coactivation_density
+
+    # Factor in concept invocation count and softmax weight
+    mult = math.log(1.0 + concept.invocation_count) * concept.softmax_weight if concept.invocation_count > 0 else 1.0
+    overlay = [v * mult for v in overlay]
+
+    # L2 normalize
+    norm = math.sqrt(sum(v * v for v in overlay))
+    if norm > 1e-8:
+        overlay = [v / norm for v in overlay]
+        
+    return tuple(overlay)
 
 
 SELF_ID = "SELF"
@@ -535,7 +585,7 @@ class GraphRuntime:
                 continue
             if any(child.embedding) or child.terms:
                 errors.append(f"lower child carries semantic payload: {child.concept_id}")
-            if not child.vault_id:
+            if not child.vault_id and not child.structural_map:
                 errors.append(f"child lower vault is missing: {child.concept_id}")
             if not cluster.semantic_node_id or self.store.get_concept(cluster.semantic_node_id) is None:
                 errors.append(f"child semantic port is missing: {child.concept_id}")
@@ -803,6 +853,21 @@ class GraphRuntime:
         digest = updated.cluster_id.rsplit(":", 1)[-1]
         child_id = updated.child_node_id or f"child:auto:{digest}"
         semantic_id = updated.semantic_node_id or f"concept:auto:{digest}"
+
+        rel_child = StructuralRelation(
+            source_node_id=parent_id,
+            target_node_id=child_id,
+            coactivation_density=float(len(updated.experience_ids)),
+            direction="input",
+        )
+        child_map = StructuralMiniMap(
+            map_id=f"map:child:{digest}",
+            parent_node_ids=(parent_id,),
+            child_node_ids=(semantic_id,),
+            relations=(rel_child,),
+            total_coactivations=len(updated.experience_ids),
+        )
+
         child = self.store.add_concept(
             ConceptNode(
                 concept_id=child_id,
@@ -810,13 +875,29 @@ class GraphRuntime:
                 kind="child",
                 embedding=as_tuple([0.0] * self.embedder.dimension),
                 terms=(),
-                vault_id=f"lower-vault:{child_id}",
+                vault_id=None,
                 created_pulse=pulse,
                 last_active_pulse=pulse,
+                structural_map=child_map,
+                invocation_count=len(updated.experience_ids),
+                softmax_weight=1.0,
             )
         )
-        if child.vault_id != f"lower-vault:{child_id}":
-            self.store.set_concept_vault(child_id, f"lower-vault:{child_id}")
+
+        rel_semantic = StructuralRelation(
+            source_node_id=child_id,
+            target_node_id=semantic_id,
+            coactivation_density=float(len(updated.experience_ids)),
+            direction="input",
+        )
+        semantic_map = StructuralMiniMap(
+            map_id=f"map:crown:{digest}",
+            parent_node_ids=(parent_id, child_id),
+            child_node_ids=(),
+            relations=(rel_semantic,),
+            total_coactivations=len(updated.experience_ids),
+        )
+
         semantic = self.store.add_concept(
             ConceptNode(
                 concept_id=semantic_id,
@@ -827,6 +908,9 @@ class GraphRuntime:
                 vault_id=f"vault:{semantic_id}",
                 created_pulse=pulse,
                 last_active_pulse=pulse,
+                structural_map=semantic_map,
+                invocation_count=len(updated.experience_ids),
+                softmax_weight=1.0,
             )
         )
         self.store.update_concept_embedding(semantic_id, updated.centroid, terms=terms)
@@ -843,8 +927,10 @@ class GraphRuntime:
             supporting_confidence = (
                 min(1.0, supporting_state.preference_weight) if supporting_state else 0.0
             )
-            self.store.add_to_vault(child.vault_id, supporting_record.record_id, child_id)
-            self.store.add_to_vault(semantic.vault_id, supporting_record.record_id, semantic_id)
+            if child.vault_id:
+                self.store.add_to_vault(child.vault_id, supporting_record.record_id, child_id)
+            if semantic.vault_id:
+                self.store.add_to_vault(semantic.vault_id, supporting_record.record_id, semantic_id)
             self.store.add_experience_projection(
                 ExperienceProjection(
                     experience_id=supporting_experience,

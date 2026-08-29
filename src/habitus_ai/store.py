@@ -16,9 +16,52 @@ from .types import (
     OverlapCluster,
     OutcomePacket,
     RecordType,
+    StructuralMiniMap,
+    StructuralRelation,
     TraversalTrace,
     as_tuple,
 )
+
+
+def _structural_map_to_dict(s_map: StructuralMiniMap | None) -> dict[str, Any] | None:
+    if s_map is None:
+        return None
+    return {
+        "map_id": s_map.map_id,
+        "parent_node_ids": list(s_map.parent_node_ids),
+        "child_node_ids": list(s_map.child_node_ids),
+        "relations": [
+            {
+                "source_node_id": r.source_node_id,
+                "target_node_id": r.target_node_id,
+                "coactivation_density": r.coactivation_density,
+                "direction": r.direction,
+            }
+            for r in s_map.relations
+        ],
+        "total_coactivations": s_map.total_coactivations,
+    }
+
+
+def _structural_map_from_dict(data: dict[str, Any] | None) -> StructuralMiniMap | None:
+    if not data:
+        return None
+    relations = tuple(
+        StructuralRelation(
+            source_node_id=r["source_node_id"],
+            target_node_id=r["target_node_id"],
+            coactivation_density=float(r.get("coactivation_density", 1.0)),
+            direction=r.get("direction", "bidirectional"),
+        )
+        for r in data.get("relations", [])
+    )
+    return StructuralMiniMap(
+        map_id=data["map_id"],
+        parent_node_ids=tuple(data.get("parent_node_ids", [])),
+        child_node_ids=tuple(data.get("child_node_ids", [])),
+        relations=relations,
+        total_coactivations=int(data.get("total_coactivations", 0)),
+    )
 
 
 def _json(value: Any) -> str:
@@ -103,7 +146,10 @@ class MindStore:
                     terms_json TEXT NOT NULL,
                     vault_id TEXT,
                     created_pulse INTEGER NOT NULL,
-                    last_active_pulse INTEGER NOT NULL DEFAULT 0
+                    last_active_pulse INTEGER NOT NULL DEFAULT 0,
+                    structural_map_json TEXT,
+                    invocation_count INTEGER NOT NULL DEFAULT 0,
+                    softmax_weight REAL NOT NULL DEFAULT 1.0
                 );
 
                 CREATE TABLE IF NOT EXISTS edges (
@@ -117,6 +163,8 @@ class MindStore:
                     last_active_time REAL,
                     created_pulse INTEGER NOT NULL,
                     archived INTEGER NOT NULL DEFAULT 0,
+                    invocation_count INTEGER NOT NULL DEFAULT 0,
+                    softmax_weight REAL NOT NULL DEFAULT 1.0,
                     UNIQUE (side, source_id, target_id)
                 );
 
@@ -199,6 +247,17 @@ class MindStore:
                     ON overlap_clusters(parent_node_id, last_pulse);
                 """
             )
+            for table, col, col_def in [
+                ("concepts", "structural_map_json", "TEXT"),
+                ("concepts", "invocation_count", "INTEGER NOT NULL DEFAULT 0"),
+                ("concepts", "softmax_weight", "REAL NOT NULL DEFAULT 1.0"),
+                ("edges", "invocation_count", "INTEGER NOT NULL DEFAULT 0"),
+                ("edges", "softmax_weight", "REAL NOT NULL DEFAULT 1.0"),
+            ]:
+                try:
+                    self.connection.execute(f"ALTER TABLE {table} ADD COLUMN {col} {col_def}")
+                except Exception:
+                    pass
 
     def _bind_embedding_space(self, space_id: str, dimension: int) -> None:
         existing = {
@@ -329,13 +388,14 @@ class MindStore:
     # ---------------------------------------------------------------- concepts
 
     def add_concept(self, concept: ConceptNode) -> ConceptNode:
+        s_map_json = _json(_structural_map_to_dict(concept.structural_map)) if concept.structural_map else None
         with self.connection:
             self.connection.execute(
                 """
                 INSERT OR IGNORE INTO concepts(
                     concept_id, label, kind, embedding_json, terms_json, vault_id,
-                    created_pulse, last_active_pulse
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    created_pulse, last_active_pulse, structural_map_json, invocation_count, softmax_weight
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     concept.concept_id,
@@ -346,12 +406,20 @@ class MindStore:
                     concept.vault_id,
                     concept.created_pulse,
                     concept.last_active_pulse,
+                    s_map_json,
+                    concept.invocation_count,
+                    concept.softmax_weight,
                 ),
             )
         return self.get_concept(concept.concept_id) or concept
 
     @staticmethod
     def _concept_from_row(row: sqlite3.Row) -> ConceptNode:
+        keys = row.keys()
+        s_map_raw = row["structural_map_json"] if "structural_map_json" in keys else None
+        s_map = _structural_map_from_dict(_loads(s_map_raw, None)) if s_map_raw else None
+        inv_count = int(row["invocation_count"]) if "invocation_count" in keys else 0
+        sm_weight = float(row["softmax_weight"]) if "softmax_weight" in keys else 1.0
         return ConceptNode(
             concept_id=row["concept_id"],
             label=row["label"],
@@ -361,6 +429,9 @@ class MindStore:
             vault_id=row["vault_id"],
             created_pulse=int(row["created_pulse"]),
             last_active_pulse=int(row["last_active_pulse"]),
+            structural_map=s_map,
+            invocation_count=inv_count,
+            softmax_weight=sm_weight,
         )
 
     def get_concept(self, concept_id: str) -> ConceptNode | None:
@@ -394,6 +465,21 @@ class MindStore:
                 (vault_id, concept_id),
             )
 
+    def set_concept_structural_map(self, concept_id: str, s_map: StructuralMiniMap) -> None:
+        s_map_json = _json(_structural_map_to_dict(s_map))
+        with self.connection:
+            self.connection.execute(
+                "UPDATE concepts SET structural_map_json = ? WHERE concept_id = ?",
+                (s_map_json, concept_id),
+            )
+
+    def increment_concept_invocation(self, concept_id: str) -> None:
+        with self.connection:
+            self.connection.execute(
+                "UPDATE concepts SET invocation_count = invocation_count + 1 WHERE concept_id = ?",
+                (concept_id,),
+            )
+
     def update_concept_embedding(
         self,
         concept_id: str,
@@ -421,8 +507,9 @@ class MindStore:
                 """
                 INSERT OR IGNORE INTO edges(
                     edge_id, side, source_id, target_id, delta_y, log_strength,
-                    conflict_penalty, last_active_time, created_pulse, archived
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    conflict_penalty, last_active_time, created_pulse, archived,
+                    invocation_count, softmax_weight
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     edge.edge_id,
@@ -435,12 +522,17 @@ class MindStore:
                     edge.last_active_time,
                     edge.created_pulse,
                     int(edge.archived),
+                    edge.invocation_count,
+                    edge.softmax_weight,
                 ),
             )
         return self.get_edge(edge.edge_id) or edge
 
     @staticmethod
     def _edge_from_row(row: sqlite3.Row) -> GraphEdge:
+        keys = row.keys()
+        inv_count = int(row["invocation_count"]) if "invocation_count" in keys else 0
+        sm_weight = float(row["softmax_weight"]) if "softmax_weight" in keys else 1.0
         return GraphEdge(
             edge_id=row["edge_id"],
             side=GraphSide(row["side"]),
@@ -456,7 +548,40 @@ class MindStore:
             ),
             created_pulse=int(row["created_pulse"]),
             archived=bool(row["archived"]),
+            invocation_count=inv_count,
+            softmax_weight=sm_weight,
         )
+
+    def increment_edge_invocation(self, edge_id: str) -> None:
+        with self.connection:
+            self.connection.execute(
+                "UPDATE edges SET invocation_count = invocation_count + 1 WHERE edge_id = ?",
+                (edge_id,),
+            )
+        edge = self.get_edge(edge_id)
+        if edge:
+            self.update_softmax_weights_for_source(edge.source_id)
+
+    def update_softmax_weights_for_source(self, source_id: str) -> None:
+        import math
+        rows = self.connection.execute(
+            "SELECT edge_id, log_strength, invocation_count FROM edges WHERE source_id = ? AND archived = 0",
+            (source_id,),
+        ).fetchall()
+        if not rows:
+            return
+        # Compute combined score: log_strength + log(1 + invocation_count)
+        scores = [float(r["log_strength"]) + math.log(1.0 + int(r["invocation_count"])) for r in rows]
+        max_score = max(scores)
+        exps = [math.exp(s - max_score) for s in scores]
+        sum_exps = sum(exps)
+        softmax_weights = [e / sum_exps if sum_exps > 0 else 1.0 / len(rows) for e in exps]
+        
+        with self.connection:
+            self.connection.executemany(
+                "UPDATE edges SET softmax_weight = ? WHERE edge_id = ?",
+                [(sm_w, r["edge_id"]) for sm_w, r in zip(softmax_weights, rows)],
+            )
 
     def get_edge(self, edge_id: str) -> GraphEdge | None:
         row = self.connection.execute(
