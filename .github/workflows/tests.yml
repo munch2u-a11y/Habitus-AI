@@ -18,4 +18,4 @@ jobs:
           cache: pip
       - run: python -m pip install -e '.[test]'
       - run: python -m pytest
-      - run: python -m agentic_memory_rag.demo
+      - run: python -m habitus_ai.demo

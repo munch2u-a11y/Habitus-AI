@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from agentic_memory_rag import BaseAgenticMemoryRAG, EventKind, RecordType
-from agentic_memory_rag.types import InputTrunk
+from habitus_ai import BaseAgenticMemoryRAG, EventKind, RecordType
+from habitus_ai.types import InputTrunk
 
 
 def _seed_project(mind):

@@ -1,0 +1,10 @@
+/native/graph_soft_generator
+/native/lexeme_codec
+/live_mind.sqlite*
+/runs/
+/opaque_skeleton.sqlite*
+/opaque_runs/
+/nursery_runs/
+/reverse_nursery_runs/
+/accelerated_gestation_runs/
+/transformer_hatch_runs/

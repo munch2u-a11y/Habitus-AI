@@ -1,5 +1,5 @@
 import pytest
-from agentic_memory_rag.vector_adapters import BaseVectorAdapter, InMemoryVectorAdapter
+from habitus_ai.vector_adapters import BaseVectorAdapter, InMemoryVectorAdapter
 
 def test_in_memory_vector_adapter():
     adapter = InMemoryVectorAdapter()

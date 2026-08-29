@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from agentic_memory_rag import BaseAgenticMemoryRAG
-from agentic_memory_rag.types import OutputTrunk
+from habitus_ai import BaseAgenticMemoryRAG
+from habitus_ai.types import OutputTrunk
 
 
 def test_basal_output_classification_uses_three_trunks():

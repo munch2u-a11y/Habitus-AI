@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from agentic_memory_rag import BaseAgenticMemoryRAG, EventEnvelope, EventKind, GraphSide
-from agentic_memory_rag.graph import OUTPUT_NODE_IDS
-from agentic_memory_rag.types import InputTrunk, OutputTrunk, SurfaceCandidate
+from habitus_ai import BaseAgenticMemoryRAG, EventEnvelope, EventKind, GraphSide
+from habitus_ai.graph import OUTPUT_NODE_IDS
+from habitus_ai.types import InputTrunk, OutputTrunk, SurfaceCandidate
 
 
 def _event(kind, correlation_id=None):

@@ -2,15 +2,15 @@ from __future__ import annotations
 
 import pytest
 
-from agentic_memory_rag import (
+from habitus_ai import (
     BaseAgenticMemoryRAG,
     HatchedAgent,
     OutputTrunk,
     gestate,
     load_profile,
 )
-from agentic_memory_rag.graph import OUTPUT_NODE_IDS
-from agentic_memory_rag.types import GraphSide, RecordType
+from habitus_ai.graph import OUTPUT_NODE_IDS
+from habitus_ai.types import GraphSide, RecordType
 
 
 class ScriptedModel:

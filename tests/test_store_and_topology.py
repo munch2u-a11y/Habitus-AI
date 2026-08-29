@@ -4,8 +4,8 @@ import sqlite3
 
 import pytest
 
-from agentic_memory_rag import BaseAgenticMemoryRAG, DeterministicHashEmbedder, RecordType
-from agentic_memory_rag.graph import (
+from habitus_ai import BaseAgenticMemoryRAG, DeterministicHashEmbedder, RecordType
+from habitus_ai.graph import (
     INPUT_NODE_IDS,
     OUTPUT_NODE_IDS,
     PREFERENCE_NODE_IDS,
@@ -78,7 +78,7 @@ def test_default_store_is_persistent_across_sessions(tmp_path, monkeypatch):
             record_id="continuity",
             event_id="continuity-event",
         )
-    assert (tmp_path / "agentic_memory.sqlite").is_file()
+    assert (tmp_path / "habitus_memory.sqlite").is_file()
 
     with BaseAgenticMemoryRAG() as reloaded:
         result = reloaded.recall("What continuity marker is in the persistent vault?")

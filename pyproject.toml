@@ -3,11 +3,11 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "base-agentic-memory-rag"
+name = "habitus-ai"
 version = "0.2.0"
-description = "A dual-cipher, conserved-weight agentic memory and RAG substrate"
+description = "Habitus AI: A dual-cipher, conserved-weight agentic memory substrate"
 readme = "README.md"
-license = {text = "MIT"}
+license = {text = "Apache-2.0"}
 requires-python = ">=3.11"
 authors = [{name = "HUMAN Project"}]
 dependencies = []
@@ -17,9 +17,10 @@ test = ["pytest>=8"]
 vector-stores = ["chromadb", "pinecone-client", "psycopg[binary]", "pgvector"]
 
 [project.scripts]
-agentic-memory-demo = "agentic_memory_rag.demo:main"
-agentic-memory-gestate = "agentic_memory_rag.cli:gestate_main"
-agentic-memory-hatch = "agentic_memory_rag.cli:hatch_main"
+habitus-demo = "habitus_ai.demo:main"
+habitus-gestate = "habitus_ai.cli:gestate_main"
+habitus-hatch = "habitus_ai.cli:hatch_main"
+habitus-launch = "habitus_ai.app:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

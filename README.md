@@ -1,248 +1,173 @@
-# Base Agentic Memory RAG
+# Habitus AI 🏛️🧠
 
 [![Python Version](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-31%20passed-brightgreen.svg)](#testing)
+[![Developer Docs](https://img.shields.io/badge/docs-Developer%20Audit-purple.svg)](DEVELOPMENT.md)
 
-**Base Agentic Memory RAG** (`base-agentic-memory-rag`) is a lightweight, zero-external-runtime-dependency Python engine for dual-cipher, conserved-weight agentic memory and evidence-preserving RAG (Retrieval-Augmented Generation).
+**Habitus AI** (`habitus-ai`) is a lightweight, zero-external-runtime-dependency Python engine for dual-cipher, conserved-weight agentic memory and evidence-preserving RAG (Retrieval-Augmented Generation).
 
-It is a standalone implementation of the smallest dependable core shared by the **Fractal Memory** and **HUMAN** cognitive architectures:
-
-- **One Immutable `SELF` Origin**: Unifying input and output traversal paths.
-- **Three Input Trunks**: `HEAR`, `SEE`, and `NOTICE` for causal event perception.
-- **Three Output Trunks**: `SPEAK`, `LOOK`, and `DO` for basal external action classification.
-- **Dual-Cipher Y-Axis Traversal**: Directional graph search over learned structural branches based on traversal time and familiarity rather than plain cosine distance.
-- **Conserved Fluid Weights**: Global and local softmax edge normalization ensuring total probability conservation (`sum(weights) = 1.0`).
-- **Two-Lane Factual Retrieval**: Direct semantic Top-3 Safety Rail combined with Graph-Selected Vault Retrieval (Dense + BM25).
-- **Canonical SQLite Evidence Authority**: Immutable event records stored in SQLite with explicit supersession history.
-- **Multi-Resolution Experience Projections**: Language-free lower-vault numeric projections carrying preference and confidence statistics without prose duplication.
-- **Evidence-Backed Growth**: Overlap-gated child branch formation with logarithmic support scaling and semantic surface ports.
-- **Persistent Agent Gestation & Hatching**: CLI tools to gestate, hatch, and converse with local LLM agents (e.g. Ollama) backed by durable receipts.
-- **Production Vector Store Adapters**: Out-of-the-box adapters for ChromaDB, Pinecone, pgvector, and in-memory stores.
+Named after the architectural concept of *habitus* (embodied, structural dispositions learned through experience), **Habitus AI** unifies long-term memory authority, structural graph routing, and action classification into a single, elegant cognitive substrate.
 
 ---
 
-## 🏛 Architecture Overview
+## 🎨 Architectural Geometry
 
-```text
-                                shared crown
-                         concepts, vectors, and vaults
-                          /                       \
-              HEAR -- SEE -- NOTICE       SPEAK -- LOOK -- DO
-                          \                       /
-                                    SELF
-```
-
-### Key Architectural Components
-
-1. **Topology & Causal Trunks**:
-   - `HEAR`: Conversational or direct inbound messages.
-   - `SEE`: Correlated real-time environmental observations or tool execution returns.
-   - `NOTICE`: Uncorrelated background updates, notifications, or delayed results.
-   - `SPEAK`: Outbound verbal or text communication.
-   - `LOOK`: Non-mutating state inspection or information retrieval actions.
-   - `DO`: External state mutations or tool executions.
-
-2. **Y-Axis Traversal**:
-   - Travel time formula:
-     $$\text{travel\_time}(e) = \frac{\Delta y(e)}{\epsilon + \text{local\_probability}(e | v)} + \text{conflict\_penalty}(e)$$
-   - Path selection depends on structural depth and learned familiarity rather than raw text similarity.
-
-3. **Two-Lane Retrieval Pipeline**:
-   - **Lane 1 (Direct Dense Rail)**: Top-3 nearest neighbor dense embeddings across canonical memory. Protects dates, numbers, names, paths, and explicit negations from eviction.
-   - **Lane 2 (Graph Vault Search)**: Y-path traversal $\rightarrow$ visited node expansion $\rightarrow$ candidate vault aggregation $\rightarrow$ hybrid Dense + BM25 reranking.
-
-4. **Conserved Weight Learning**:
-   - Live edge logits are globally and locally softmax-normalized.
-   - Durable strength updates occur **only** after a verified outcome carrying an immutable receipt ID. Unverified model outputs cannot reinforce paths.
+![Habitus AI Folded Hourglass Toroidal Architecture](assets/habitus_hourglass_geometry.png)
 
 ---
 
-## 🚀 Quick Start
+## 🌟 How It Works (In Plain English)
 
-### Installation
+Traditional AI memory relies on flat vector databases or massive prompt context dumps that cause hallucinations, prompt bloat, and context eviction. **Habitus AI** takes a radically different approach based on structural 3D geometry and conserved fluid dynamics:
 
-Install the package using pip (Python 3.11+ required):
+### 1. The Hourglass Bicone Topology
+Memory in Habitus AI is organized around an immutable center point called **`SELF`** (Layer 0):
+- **+Y Perceptual Trunks (`HEAR`, `SEE`, `NOTICE`)**: Intakes conversational text, real-time tool returns, and background notifications.
+- **-Y Effector Trunks (`SPEAK`, `LOOK`, `DO`)**: Classifies outbound action intents—distinguishing verbal responses (`SPEAK`), non-mutating inspections (`LOOK`), and external state changes (`DO`).
+- **Semantic Crown**: Shared 1024D concept vectors and vault storage connecting sensory input to action output.
+
+### 2. Dual-Cipher Y-Axis Traversal
+Instead of pulling nearest-neighbor text snippets purely by cosine similarity, Habitus AI runs a **Y-axis travel time cipher**. It calculates structural depth, path travel times, and learned familiarity:
+$$\text{travel\_time}(e) = \frac{\Delta y(e)}{\epsilon + \text{local\_probability}(e | v)} + \text{conflict\_penalty}(e)$$
+Winning Y-paths activate visited node vaults for associative expansion, ensuring memory retrieval is guided by structural routing rather than simple keyword proximity.
+
+### 3. Conserved Fluid Edge Weights
+Just like physical conservation laws, live edge strengths in Habitus AI sum to `1.0` both globally and locally. Reinforcing one successful route naturally optimizes competitor pathways, preventing runaway score inflation and eliminating memory drift.
+
+### 4. Two-Lane Factual Safety Rail
+- **Lane 1 (Direct Dense Rail)**: Locked top-3 dense nearest neighbors pulling immutable canonical records directly from SQLite. Crucial dates, numbers, names, paths, and negations can never be evicted by graph scores.
+- **Lane 2 (Graph Vault Retrieval)**: Traverses visited Y-paths $\rightarrow$ expands candidate vaults $\rightarrow$ applies hybrid Dense + BM25 reranking.
+
+### 5. Gestation & Hatching
+---
+
+## 📊 Why Habitus AI? (Architecture Comparison)
+
+| Capability / Feature | Traditional Vector RAG | Standard Graph RAG | Habitus AI 🏛️🧠 |
+| :--- | :---: | :---: | :---: |
+| **Memory Authority** | Loose Vector Chunks | Static Triples | **Immutable Canonical SQLite Records** |
+| **Factual Safety Rail** | ❌ (Eviction Prone) | ❌ (Eviction Prone) | **✅ Direct Top-3 Rail (Zero Eviction)** |
+| **Action Classification** | ❌ (LLM Prompt Guesses) | ❌ (None) | **✅ Classified Trunks (`SPEAK`/`LOOK`/`DO`)** |
+| **Durable Learning** | ❌ (Unverified Context) | ❌ (Manual Schema) | **✅ Receipt-Gated (`ActionReceipt` verified)** |
+| **Probability Mechanics** | N/A | Accumulating Scores | **✅ Softmax Fluid Weight Conservation ($\sum=1.0$)** |
+| **Runtime Dependencies** | External Vector DB | Neo4j / NetworkX | **⚡ 0 External DBs (Pure Python + SQLite)** |
+
+---
+
+## 🚀 Endless Possibilities for Habitus AI
+
+- 🤖 **Zero-Drift Autonomous Agents**: Persistent identity and evidence memory that survive process restarts without context drift.
+- 🛡️ **Receipt-Gated Action Verification**: Agents learn durably **only** after receiving a verified external execution receipt (`ActionReceipt`). Unverified internal model chatter cannot corrupt edge weights.
+- 🛠️ **Built-in Operational Tool Suite & Trunk Binding**: Includes standard tools (`read_file`, `write_file`, `inspect_directory`, `execute_python`, `web_search`, `send_message`) pre-bound to motor trunks (`LOOK`, `DO`, `SPEAK`), generating verified receipts (`ToolReceipt`).
+- ⚡ **Ultra-Fast Local Execution**: 0 external database servers required; runs entirely in pure Python standard library and SQLite with optional vector database adapters (ChromaDB, Pinecone, pgvector).
+
+---
+
+## 🐣 Quick Start for Testers
+
+### 1. Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-org/base-agentic-memory-rag.git
-cd base-agentic-memory-rag
-
-# Install in editable mode with test dependencies
+git clone https://github.com/munch2u-a11y/Habitus-AI.git
+cd habitus-ai
 pip install -e '.[test]'
 ```
 
-### Running Tests & Demo
+### 2. Launch the Interactive Web App Launcher 🌐🐣
+
+Launch the visual web launcher with auto-detection of local models, developer tools manager, and an animated egg gestation modal:
 
 ```bash
-# Run pytest suite
-python3 -m pytest
-
-# Run built-in interactive demo
-python3 -m agentic_memory_rag.demo
-# Or via installed CLI entrypoint:
-agentic-memory-demo
+habitus-launch
 ```
 
----
+- **Auto-Detect Models**: Automatically queries local Ollama models (`http://127.0.0.1:11434/api/tags`).
+- **Animated Gestation Progress**: Watch the egg sprite 🥚 float & glow with a live `0%` $\rightarrow$ `100%` progress bar.
+- **Developer Tools Tab**: Load and manage single-use execution gateway tools (`LOOK`, `DO`, `SPEAK`).
+- **Interactive Chat**: Chat with responses classified into motor trunks (`SPEAK`, `LOOK`, `DO`) and Y-paths traversed.
 
-## 🐣 Gestating and Hatching an Agent
+### 3. Terminal CLI Setup & Hatching
 
-The package includes a guided agent nursery adapter to gestate and hatch persistent local talking agents backed by Ollama:
+During chat:
+- Type `/status` to inspect record counts, crown concepts, total edges, and graph health.
+- Type `/quit` to safely exit.
 
-### One-Command Hatch
-
-```bash
-agentic-memory-hatch
-```
-
-This interactive CLI prompts for your name, the agent's name, an initial taste seed, and an installed Ollama model (e.g. `granite4.1:8b`, `llama3.2`, `qwen2.5`). It initializes `agentic_memory.sqlite` and launches an interactive chat session.
-
-### Scripted Gestation & Hatching
+### 3. Scripted Gestation
 
 ```bash
-# Step 1: Gestate agent profile and seed initial taste
-agentic-memory-gestate \
+habitus-gestate \
   --human-name Josh \
   --agent-name Nova \
   --taste curious \
   --model granite4.1:8b
 
-# Step 2: Hatch and launch persistent chat shell
-agentic-memory-hatch
+habitus-hatch
 ```
 
-Available taste seeds:
-- `balanced`: Equal balance across interaction modes.
-- `curious`: Higher output prior on `LOOK` (exploration/inquiry).
-- `deliberate`: Higher output prior on structured analysis.
-- `builder`: Higher output prior on `DO` (execution/action).
-
-*Note: Taste seeds set initial edge priors; they do not hardcode fixed prompts and adapt over time based on verified outcomes.*
-
----
-
-## 💡 Python API Usage
-
-### Minimal Example
-
-```python
-from agentic_memory_rag import BaseAgenticMemoryRAG, EventKind
-
-# Initialize persistent memory engine (SQLite database)
-mind = BaseAgenticMemoryRAG("agentic_memory.sqlite")
-
-# Add domain concepts
-mind.add_concept(
-    concept_id="project_helios",
-    label="Project Helios",
-    terms=["helios", "deployment", "launch"],
-    input_trunks=["HEAR", "NOTICE"],
-    output_trunks=["LOOK", "DO"],
-)
-
-# Remember an event (immutable canonical record)
-mind.remember(
-    text="Josh moved Project Helios deployment to 2027-04-18.",
-    kind=EventKind.MESSAGE,
-    source_id="josh",
-    concept_ids=["project_helios"],
-)
-
-# Recall context for a query
-result = mind.recall("When is Project Helios deploying?")
-
-print("=== Context for LLM ===")
-print(result.context)
-
-print("\n=== Direct Factual Rail IDs ===")
-print(result.packet.direct_record_ids)
-
-print("\n=== Y-Paths Visited ===")
-print(result.packet.y_paths)
-
-mind.close()
-```
-
-### Multi-Resolution Experience Projections
-
-Every remembered experience deposits language-free numeric projections into lower vaults:
-
-```python
-mind.remember(
-    text="Verified outcome received for turn 42.",
-    metadata={
-        "experience_id": "turn-42",
-        "preference_signals": [0.2, 0.8],
-        "preference_confidence": 0.9,
-    },
-)
-
-# Inspect experience state and lower projections
-print(mind.experience_state("turn-42"))
-print(mind.experience_projections("turn-42"))
-```
-
-### Vector Database Adapters
-
-For production applications requiring vector database backends, `agentic_memory_rag.vector_adapters` provides pluggable vector store adapters:
-
-```python
-from agentic_memory_rag.vector_adapters import (
-    InMemoryVectorAdapter,
-    ChromaVectorAdapter,
-    PineconeVectorAdapter,
-    PgVectorAdapter,
-)
-
-# In-Memory Adapter (pure Python math)
-vector_store = InMemoryVectorAdapter()
-vector_store.upsert("vec-1", [0.1, 0.5, 0.9], metadata={"concept": "helios"})
-
-# Query top k
-results = vector_store.query([0.1, 0.5, 0.9], top_k=3)
-```
-
----
-
-## 🔒 Mandatory Architectural Invariants
-
-1. Exactly one `SELF` origin exists.
-2. Input frontier is strictly `HEAR`, `SEE`, and `NOTICE`.
-3. Output frontier is strictly `SPEAK`, `LOOK`, and `DO`.
-4. Global live edge mass sums to `1.0`.
-5. Non-empty local outgoing frontiers sum to `1.0`.
-6. Surface semantic scores cannot alter Y travel time.
-7. Direct dense rail evidence cannot be evicted by graph retrieval scores.
-8. Canonical records in SQLite are immutable; corrections create supersession records.
-9. Unverified outputs cannot durably reinforce edge weights.
-10. Lower experience projections contain no natural language prose.
-
-Invariant checks can be programmatically verified at runtime via `GraphRuntime.validate_invariants()`.
-
----
-
-## 🧪 Testing
-
-The repository maintains 100% passing test coverage across topology, retrieval, gestation, multi-resolution projections, and vector adapters.
+### 4. Run the Pipeline Demo
 
 ```bash
-# Run pytest suite
+habitus-demo
+```
+
+### 5. Run Automated Tests
+
+```bash
 python3 -m pytest -v
 ```
 
-Test modules:
-- `tests/test_store_and_topology.py`: SQLite schema, invariants, concept topology.
-- `tests/test_graph_and_learning.py`: Y-traversal, travel time, conserved fluid weight learning.
-- `tests/test_retrieval_pipeline.py`: Two-lane recall, direct safety rail, BM25 + dense vault retrieval.
-- `tests/test_multiresolution_memory.py`: Lower projections, overlap clusters, experience states.
-- `tests/test_gestation_and_agent.py`: Gestation profiles, taste seeds, persistent agent turns.
-- `tests/test_output_and_demo.py`: Output classification (`SPEAK`/`LOOK`/`DO`), demo pipeline.
-- `tests/test_vector_adapters.py`: Vector store adapter interfaces and in-memory engine.
+### 6. Registering Tools & Verified Receipts
+
+```python
+from habitus_ai import HabitusAI, OutputTrunk
+from habitus_ai.tools import ToolRegistry, BUILTIN_OPERATIONAL_TOOLS
+
+mind = HabitusAI("habitus_memory.sqlite")
+registry = ToolRegistry(mind)
+
+# Register operational tools bound to motor trunks (LOOK, DO, SPEAK)
+for tool in BUILTIN_OPERATIONAL_TOOLS:
+    registry.register_tool(tool)
+
+# Execute tool and generate verified execution receipt
+receipt = registry.execute("tool:read_file", {"filepath": "README.md"})
+print("Verified:", receipt.verified, "| Output size:", receipt.output["size_bytes"])
+```
+
+#### 💡 Custom Tools & How "Skills" Form Naturally
+
+In traditional frameworks, developers must write complex prompt catalogs and manual tool routing rules. In **Habitus AI**:
+
+- **Plug In Whatever Tools You Want**: Register any custom Python function, REST API, DB query, or system command using `ToolDefinition` bound to the appropriate motor trunk (`LOOK` for inspections, `DO` for state mutations, `SPEAK` for verbal notifications).
+- **Emergent Skills from Repetition & Reinforcement**: As your agent executes tools and receives verified receipts (`ToolReceipt`), lower-vault experience projections form overlap clusters. Over time, repeated successful tool patterns **naturally coalesce into durable learned skills** via conserved fluid weight reinforcement—without needing hardcoded skill files!
+
+### 7. Verbal Audio Reflex Bridge (Piper TTS & STT Intake)
+
+```python
+from habitus_ai import HabitusAI
+from habitus_ai.audio import AudioReflexBridge
+
+mind = HabitusAI("habitus_memory.sqlite")
+audio_bridge = AudioReflexBridge(mind, piper_model="en_US-lessac-medium")
+
+# Execute verbal intake -> Y-traversal -> TTS speech synthesis reflex
+result = audio_bridge.process_reflex_turn("Hello Nova")
+
+print("Spoken output:", result["spoken_text"])
+print("Trunk classified:", result["classified_trunk"])
+print("Audio WAV path:", result["audio_path"])
+print("Verified receipt:", result["receipt"].receipt_id)
+```
+
+---
+
+## 📚 Developer & Researcher Documentation
+
+For deep technical audits, mathematical derivations, sequence workflow diagrams, and our LLM-free experimental benchmarks (language projection & reflective tool routing without an LLM), read the **[Developer & Architectural Audit (DEVELOPMENT.md)](DEVELOPMENT.md)**.
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Licensed under the [Apache License 2.0](LICENSE).

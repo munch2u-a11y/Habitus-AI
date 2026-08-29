@@ -32,3 +32,4 @@ build/
 *.swo
 .DS_Store
 *.log
+scratch/

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from agentic_memory_rag import BaseAgenticMemoryRAG
-from agentic_memory_rag.graph import PREFERENCE_NODE_IDS
-from agentic_memory_rag.types import EventKind, GraphSide, InputTrunk
+from habitus_ai import BaseAgenticMemoryRAG
+from habitus_ai.graph import PREFERENCE_NODE_IDS
+from habitus_ai.types import EventKind, GraphSide, InputTrunk
 
 
 def test_one_experience_deposits_language_free_lower_projections():

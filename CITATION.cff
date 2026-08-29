@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use Habitus AI in your research or software, please cite it as below."
+authors:
+  - family-names: "HUMAN Project & Fractal Memory Contributors"
+title: "Habitus AI: A Dual-Cipher, Conserved-Weight Agentic Memory Substrate"
+version: 0.2.0
+date-released: 2026-08-28
+url: "https://github.com/munch2u-a11y/Habitus-AI"
+license: Apache-2.0
