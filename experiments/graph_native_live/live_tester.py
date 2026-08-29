@@ -192,7 +192,7 @@ def compile_turn(
         f"{basis} {value:.8f}\n" for basis, value in activations
     )
     packet_path.write_text(packet_text, encoding="utf-8")
-    if user_text in packet_text:
+    if len(user_text.strip()) > 1 and user_text.strip() in packet_text:
         raise RuntimeError("raw user input leaked into the native graph packet")
 
     trace = {

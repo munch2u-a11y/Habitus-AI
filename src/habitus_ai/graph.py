@@ -875,7 +875,7 @@ class GraphRuntime:
                 kind="child",
                 embedding=as_tuple([0.0] * self.embedder.dimension),
                 terms=(),
-                vault_id=None,
+                vault_id=f"lower-vault:{child_id}",
                 created_pulse=pulse,
                 last_active_pulse=pulse,
                 structural_map=child_map,
