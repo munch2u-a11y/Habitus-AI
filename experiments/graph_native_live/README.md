@@ -438,6 +438,37 @@ by how much of a concept it covers rather than how often it repeats.
 - That merged topics can be separated. Three related topics collapsing into one node with one
   surviving name is unresolved, and is the clearest remaining developmental limitation.
 
+## Membrane-restricted vocabulary
+
+The adapter decoded against the model's whole 151k vocabulary, so a weak prediction could name a
+token the substrate has no concept for — unused byte fragments, in practice. `membrane_lexicon()`
+collects what has actually crossed the input boundary and decoding searches only that.
+
+| Decode candidates | Known | Unseen | Junk decodes |
+|---|---|---|---|
+| full model vocabulary | 100% | 0% | 11/11 |
+| membrane, all heard | 84% | 0% | 0/11 |
+| membrane, externally heard only | 84% | 18% | 0/11 |
+
+### What this establishes
+
+- The mind cannot name a word it has never heard. Junk decoding goes to zero by construction.
+- **Self-generated vocabulary is a superordinate attractor.** Including the substrate's own
+  coactivation records puts category names in the lexicon, and blurry predictions land on them:
+  8 of 11 held-out decodes returned a category rather than a specific word. Dropping 12
+  self-written words reverses it.
+- Restriction costs 16 points on known concepts. A target is the mean of three word embeddings,
+  and among a few hundred heard words another can sit nearer that mean than its own constituents.
+  The familiarity prior is not responsible — results are flat from weight 0.0 to 0.15.
+
+### What it does not establish
+
+- That the constraint improves accuracy. It does not; it trades exact matches for the guarantee
+  that every utterance is grounded in experience. That trade is the reason to take it.
+- Whether re-emitting a heard word actually reinforces it. The loop that would close this —
+  emit, receive an outcome, reinforce the edge — exists, but has not been run over enough turns
+  to show a word's pattern of use crystallizing.
+
 ## GPU offload
 
 The adapter loads every ggml backend it finds, including the accelerator subdirectories that ship

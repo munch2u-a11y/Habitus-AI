@@ -38,6 +38,15 @@ class ReverseSpeechAttempt:
     projection_tensor: str | None
 
 
+def decode_native(stream: bytes) -> str:
+    """Decode native adapter output leniently.
+
+    A generated token piece can be a partial UTF-8 sequence, and strict decoding would
+    abort an entire run over one BPE fragment.
+    """
+    return stream.decode("utf-8", "replace").strip()
+
+
 def embedding_identity(embedding: Sequence[float]) -> str:
     digest = hashlib.sha256()
     for value in embedding:
@@ -126,13 +135,12 @@ def nearest_vocabulary(
         [str(codec), str(model), "nearest", str(top_k), *encoded],
         check=False,
         capture_output=True,
-        text=True,
         env=nursery.codec_environment(),
         timeout=240,
     )
     if completed.returncode != 0:
-        raise RuntimeError(completed.stderr.strip())
-    return json.loads(completed.stdout)
+        raise RuntimeError(decode_native(completed.stderr))
+    return json.loads(decode_native(completed.stdout))
 
 
 def attempt_reverse_speech(

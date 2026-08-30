@@ -61,6 +61,8 @@ VALENCE_SCALARS = 6
 FEATURE_DIMENSION = 3 * DIMENSION + VALENCE_SCALARS
 DEFAULT_CODEC = EXPERIMENT_ROOT / "native" / "lexeme_codec"
 PROJECTOR_SCHEMA = "habitus.graph-projector.v1"
+# Records the substrate wrote itself rather than received through a sensory trunk.
+SELF_GENERATED_SOURCES = frozenset({"developmental_coactivation", "self:thought", "graph-native-model"})
 
 
 # ---------------------------------------------------------------------------
@@ -161,14 +163,16 @@ def lexical_embeddings(
         [str(codec_path), str(model_path), "tokenize", *unique],
         check=False,
         capture_output=True,
-        text=True,
         env=environment,
         timeout=600,
     )
     if completed.returncode != 0:
-        raise RuntimeError(f"lexeme_codec failed ({completed.returncode}): {completed.stderr.strip()}")
+        raise RuntimeError(
+            f"lexeme_codec failed ({completed.returncode}): "
+            f"{completed.stderr.decode('utf-8', 'replace').strip()}"
+        )
 
-    payload = json.loads(completed.stdout)
+    payload = json.loads(completed.stdout.decode("utf-8", "replace"))
     return {
         item["text"]: _unit(item["embedding"])
         for item in payload["items"]
@@ -429,6 +433,93 @@ def evaluate_against_codebook(
 
 
 # ---------------------------------------------------------------------------
+# Membrane lexicon: decoding restricted to what the mind has actually heard
+# ---------------------------------------------------------------------------
+
+def membrane_lexicon(
+    mind: BaseAgenticMemoryRAG,
+    *,
+    minimum_length: int = 3,
+    minimum_count: int = 1,
+    external_only: bool = False,
+) -> dict[str, int]:
+    """Every word that has crossed the input membrane, with how often.
+
+    ``external_only`` drops the substrate's own thought and coactivation records, leaving
+    only vocabulary that actually arrived from outside.
+
+    Decoding against the model's full 151k vocabulary lets a weak prediction land on a
+    token the substrate has no possible concept for -- in practice, unused byte fragments
+    near the embedding centroid.  Restricting candidates to heard words means every decode
+    names something in the environment, and a word the mind meets often gets repeated
+    chances to be re-emitted, reinforced, and eventually crystallized.
+    """
+    counts: dict[str, int] = {}
+    for record in mind.store.list_active_records():
+        if external_only and record.source_id in SELF_GENERATED_SOURCES:
+            continue
+        for word in re.findall(r"[A-Za-z']+", (record.text or "").casefold()):
+            if len(word) >= minimum_length:
+                counts[word] = counts.get(word, 0) + 1
+    return {word: count for word, count in counts.items() if count >= minimum_count}
+
+
+def embed_lexicon(
+    lexicon: Sequence[str],
+    *,
+    model_path: Path,
+    codec_path: Path = DEFAULT_CODEC,
+) -> tuple[list[str], np.ndarray]:
+    """Embed each heard word once, in the tokenizer's mid-sentence form."""
+    words = sorted(set(lexicon))
+    if not words:
+        return [], np.zeros((0, DIMENSION))
+    embeddings = lexical_embeddings(
+        [f" {word}" for word in words], model_path=model_path, codec_path=codec_path
+    )
+    kept = [word for word in words if f" {word}" in embeddings]
+    if not kept:
+        return [], np.zeros((0, DIMENSION))
+    return kept, np.vstack([embeddings[f" {word}"] for word in kept])
+
+
+def nearest_membrane_words(
+    vectors: Sequence[np.ndarray],
+    words: Sequence[str],
+    matrix: np.ndarray,
+    *,
+    top_k: int = 3,
+    frequency: dict[str, int] | None = None,
+    frequency_weight: float = 0.0,
+) -> list[list[tuple[str, float]]]:
+    """Nearest neighbours restricted to the heard lexicon.
+
+    ``frequency_weight`` adds a familiarity prior, so a word the environment uses often is
+    favoured over an equally close one heard once.  At 0.0 the ranking is pure geometry.
+    """
+    if not len(words) or matrix.size == 0:
+        return [[] for _ in vectors]
+
+    prior = np.zeros(len(words), dtype=np.float64)
+    if frequency and frequency_weight:
+        counts = np.array([float(frequency.get(word, 0)) for word in words])
+        ceiling = math.log1p(counts.max()) if counts.max() > 0 else 1.0
+        prior = frequency_weight * np.log1p(counts) / (ceiling or 1.0)
+
+    decoded: list[list[tuple[str, float]]] = []
+    for vector in vectors:
+        vector = np.asarray(vector, dtype=np.float64)
+        norm = float(np.linalg.norm(vector))
+        if norm <= 1e-9:
+            decoded.append([])
+            continue
+        scores = matrix @ (vector / norm) + prior
+        order = np.argsort(-scores)[:top_k]
+        decoded.append([(words[index], float(scores[index])) for index in order])
+    return decoded
+
+
+# ---------------------------------------------------------------------------
 # Per-concept targets from discriminative vocabulary
 # ---------------------------------------------------------------------------
 
@@ -655,10 +746,34 @@ def decode_concept_vocabulary(
     model_path: Path,
     codec_path: Path = DEFAULT_CODEC,
     top_k: int = 3,
+    membrane: bool = False,
+    external_only: bool = True,
+    frequency_weight: float = 0.0,
 ) -> tuple[list[tuple[str, list[str], list[str]]], float]:
-    """Round-trip every state back to words and score against its own vocabulary."""
+    """Round-trip every state back to words and score against its own vocabulary.
+
+    With ``membrane=True`` the candidate set is the mind's heard lexicon rather than the
+    model's full vocabulary.  That constraint means the substrate can never name a word it
+    has no experience of -- no decode can land on an unused byte fragment -- at the cost of
+    some exact matches, because among a few hundred heard words another one can sit closer
+    to a target direction than the words that direction was built from.
+    """
     predictions = [fit.predict(state_features(mind, concept_id)) for concept_id in concept_ids]
-    decoded = nearest_words(predictions, model_path=model_path, codec_path=codec_path, top_k=top_k)
+    if membrane:
+        lexicon = membrane_lexicon(mind, external_only=external_only)
+        words, matrix = embed_lexicon(list(lexicon), model_path=model_path, codec_path=codec_path)
+        decoded = nearest_membrane_words(
+            predictions,
+            words,
+            matrix,
+            top_k=top_k,
+            frequency=lexicon,
+            frequency_weight=frequency_weight,
+        )
+    else:
+        decoded = nearest_words(
+            predictions, model_path=model_path, codec_path=codec_path, top_k=top_k
+        )
 
     rows: list[tuple[str, list[str], list[str]]] = []
     hits = 0
@@ -680,6 +795,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         help="record: state -> pooled record-text embedding. concept: state -> discriminative vocabulary.",
     )
     parser.add_argument("--top-k-words", type=int, default=3)
+    parser.add_argument(
+        "--membrane",
+        action="store_true",
+        help="decode only into words the mind has heard, instead of the model's full vocabulary",
+    )
     parser.add_argument("--database", type=Path, required=True, help="mind SQLite path")
     parser.add_argument("--model", type=Path, default=live_tester.DEFAULT_MODEL)
     parser.add_argument("--codec", type=Path, default=DEFAULT_CODEC)
@@ -714,13 +834,16 @@ def _run_concept_mode(mind: BaseAgenticMemoryRAG, args: argparse.Namespace) -> i
         ridge_lambda=args.ridge_lambda,
     )
     rows, accuracy = decode_concept_vocabulary(
-        mind, fit, concept_ids, words, model_path=args.model, codec_path=args.codec
+        mind, fit, concept_ids, words,
+        model_path=args.model, codec_path=args.codec, membrane=args.membrane,
     )
     save_projector(fit, args.output)
 
     print(f"lexical concepts : {len(concept_ids)}")
     print(f"solver           : {fit.solver} (lambda={fit.ridge_lambda})")
     print(f"train cosine     : {fit.train_cosine:.4f}")
+    vocabulary = "heard lexicon" if args.membrane else "full model vocabulary"
+    print(f"decode vocabulary: {vocabulary}")
     print(f"state -> words   : {accuracy * 100:.0f}% decode one of their own words")
     print(f"written          : {args.output}\n")
     for concept_id, expected, produced in rows[:20]:

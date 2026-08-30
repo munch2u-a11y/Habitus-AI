@@ -27,6 +27,7 @@ Habitus-AI couples a dual-cipher conserved-weight agentic memory substrate (Hour
 | M10 | Fitted Continuous Projector | Replace the authored anchor codebook with a ridge-fitted graph-to-embedding map; optional GPU offload | M9 | DONE |
 | M11 | Layer 3 Population Across All Trunks | Record both bicone halves in structural mini-maps and attach assemblies to their effector trunk, so structure alone supports readout | M10 | DONE |
 | M12 | Curriculum Grounding | Verify taught vocabulary is recoverable from the mind; remove label collisions from the developmental environment | M11 | DONE |
+| M13 | Membrane-Restricted Vocabulary | Restrict adapter decoding to words the substrate has heard, so it can never name what it has no concept for | M12 | DONE |
 
 
 

@@ -358,3 +358,117 @@ class TestStateToWordsRoundTrip:
             assert concept_id in words
             assert expected
             assert isinstance(produced, list)
+
+
+class TestMembraneLexicon:
+    """Decoding restricted to words the substrate has actually heard."""
+
+    def test_lexicon_contains_heard_words_and_counts_them(
+        self, experienced_mind: LiveEvaluator
+    ) -> None:
+        lexicon = projector.membrane_lexicon(experienced_mind.mind)
+        assert lexicon
+        # Words from the cooperative stream were heard and must be present
+        for word in ("careful", "consistent", "cooperation"):
+            assert word in lexicon
+        assert all(count >= 1 for count in lexicon.values())
+        assert all(len(word) >= 3 for word in lexicon)
+        # A word never spoken into this mind cannot appear
+        assert "helicopter" not in lexicon
+
+    def test_external_only_drops_self_generated_vocabulary(
+        self, experienced_mind: LiveEvaluator
+    ) -> None:
+        mind = experienced_mind.mind
+        mind.remember(
+            "internal coactivation reverie about zebras",
+            source_id="self:thought",
+        )
+        heard_all = projector.membrane_lexicon(mind, external_only=False)
+        heard_external = projector.membrane_lexicon(mind, external_only=True)
+
+        assert "zebras" in heard_all
+        assert "zebras" not in heard_external
+        assert set(heard_external) <= set(heard_all)
+
+    def test_minimum_count_filters_rare_words(self, experienced_mind: LiveEvaluator) -> None:
+        common = projector.membrane_lexicon(experienced_mind.mind, minimum_count=3)
+        every = projector.membrane_lexicon(experienced_mind.mind, minimum_count=1)
+        assert set(common) <= set(every)
+        assert all(count >= 3 for count in common.values())
+
+    def test_decoding_cannot_leave_the_heard_lexicon(self) -> None:
+        """The whole point: an arbitrary direction still names a heard word."""
+        words = ["alpha", "beta", "gamma"]
+        matrix = np.eye(3, dtype=np.float64)
+        rng = np.random.default_rng(4)
+        for _ in range(8):
+            decoded = projector.nearest_membrane_words(
+                [rng.normal(size=3)], words, matrix, top_k=2
+            )
+            assert decoded[0]
+            for word, _ in decoded[0]:
+                assert word in words
+
+    def test_zero_vector_decodes_to_nothing(self) -> None:
+        words = ["alpha", "beta"]
+        matrix = np.eye(2, dtype=np.float64)
+        assert projector.nearest_membrane_words([np.zeros(2)], words, matrix) == [[]]
+
+    def test_empty_lexicon_is_handled(self) -> None:
+        assert projector.nearest_membrane_words(
+            [np.ones(3)], [], np.zeros((0, 3))
+        ) == [[]]
+
+    def test_familiarity_prior_favours_frequently_heard_words(self) -> None:
+        """Two equally close candidates: the one heard more often should win."""
+        words = ["rare", "common"]
+        matrix = np.vstack([np.array([1.0, 0.0]), np.array([1.0, 0.0])])
+        frequency = {"rare": 1, "common": 100}
+
+        neutral = projector.nearest_membrane_words([np.array([1.0, 0.0])], words, matrix, top_k=1)
+        assert neutral[0][0][0] == "common" or neutral[0][0][0] == "rare"
+
+        primed = projector.nearest_membrane_words(
+            [np.array([1.0, 0.0])], words, matrix, top_k=1,
+            frequency=frequency, frequency_weight=0.5,
+        )
+        assert primed[0][0][0] == "common"
+
+
+@pytest.mark.skipif(not HAS_CODEC, reason="lexeme_codec or GGUF model unavailable")
+class TestMembraneDecodeIntegration:
+    """The membrane path end to end against the real embedding table."""
+
+    def test_lexicon_embeds_and_decodes_within_itself(
+        self, experienced_mind: LiveEvaluator
+    ) -> None:
+        lexicon = projector.membrane_lexicon(experienced_mind.mind, minimum_count=2)
+        words, matrix = projector.embed_lexicon(list(lexicon), model_path=MODEL_PATH)
+        assert words
+        assert matrix.shape == (len(words), DIMENSION)
+        for row in matrix:
+            assert abs(float(np.linalg.norm(row)) - 1.0) < 1e-6
+
+        # Decoding a lexicon word's own embedding returns that word first
+        probe = words[len(words) // 2]
+        decoded = projector.nearest_membrane_words(
+            [matrix[words.index(probe)]], words, matrix, top_k=1
+        )
+        assert decoded[0][0][0] == probe
+
+    def test_concept_decode_honours_the_membrane_flag(
+        self, experienced_mind: LiveEvaluator
+    ) -> None:
+        mind = experienced_mind.mind
+        fit, concept_ids, disc = projector.fit_concept_projector(
+            mind, model_path=MODEL_PATH, minimum_records=1, ridge_lambda=0.1
+        )
+        heard = set(projector.membrane_lexicon(mind, external_only=True))
+        rows, _ = projector.decode_concept_vocabulary(
+            mind, fit, concept_ids, disc, model_path=MODEL_PATH, membrane=True
+        )
+        assert rows
+        for _, _, produced in rows:
+            for word in produced:
+                assert word.casefold() in heard

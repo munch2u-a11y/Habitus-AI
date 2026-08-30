@@ -91,6 +91,15 @@ SEED_CONCEPTS: dict[str, dict[str, Any]] = {
 }
 
 
+def decode_native(stream: bytes) -> str:
+    """Decode native adapter output leniently.
+
+    A generated token piece can be a partial UTF-8 sequence, and strict decoding would
+    abort an entire run over one BPE fragment.
+    """
+    return stream.decode("utf-8", "replace").strip()
+
+
 def ensure_seed(mind: BaseAgenticMemoryRAG) -> None:
     """Install the small semantic crown once without rewriting canonical data."""
     for concept_id, specification in SEED_CONCEPTS.items():
@@ -265,15 +274,14 @@ def run_native(
         command,
         check=False,
         capture_output=True,
-        text=True,
         env=environment,
         timeout=180,
     )
     if completed.returncode != 0:
         raise RuntimeError(
-            f"native adapter exited {completed.returncode}: {completed.stderr.strip()}"
+            f"native adapter exited {completed.returncode}: {decode_native(completed.stderr)}"
         )
-    return json.loads(completed.stdout)
+    return json.loads(decode_native(completed.stdout))
 
 
 def one_turn(

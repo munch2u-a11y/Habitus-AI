@@ -215,7 +215,49 @@ often it happens to repeat.
 Final readout on the corrected curriculum: known concepts **100%** (train cosine 0.9996), unseen
 concepts 0.30, structure-only 0.275.
 
-### 8. GPU Offload
+### 8. Membrane-Restricted Vocabulary
+
+Decoding against the model's full 151k vocabulary lets a weak prediction land on a token the
+substrate has no possible concept for — in practice, unused byte fragments near the embedding
+centroid, which is what every held-out decode produced. `membrane_lexicon()` collects the words
+that have actually crossed the input boundary, `embed_lexicon()` embeds each once, and
+`nearest_membrane_words()` searches only that set. The mind can then name nothing it has not
+heard.
+
+Measured on a gestated mind, 241 externally heard words against 151k model tokens:
+
+| Decode candidates | Known concepts | Unseen concepts | Junk-token decodes |
+|---|---|---|---|
+| Full model vocabulary | **100%** | 0% | 11 / 11 |
+| Membrane, all heard words | 84% | 0% | 0 / 11 |
+| Membrane, **externally heard only** | 84% | **18%** | **0 / 11** |
+
+Three things this measured:
+
+**The constraint works by construction.** Junk decoding goes to zero and cannot recur — the
+candidate set contains only heard words.
+
+**Self-generated vocabulary acts as a superordinate attractor.** Including the substrate's own
+coactivation records adds category names (`relational`, `agency`, `knowledge`) to the lexicon,
+and a blurry prediction lands on them rather than on any specific word: 8 of 11 held-out decodes
+returned a category. Excluding self-generated records — 12 words out of 253 — removes the
+attractor, and specific words start winning: `[gratitude, kindness, friendship]` for the
+friendship concept instead of `[gratitude, relational, kindness]`. Both behaviours are defensible;
+an under-determined concept reading out as its superordinate is arguably correct development, so
+`external_only` is a parameter rather than a hardcoded choice.
+
+**Restriction costs exact matches on known concepts, and that is not a bug.** A target direction
+is the mean of three word embeddings; among a few hundred heard words, some other heard word can
+sit closer to that mean than the words it was built from. The familiarity prior is not the cause
+— results are identical from weight 0.0 to 0.15. The 16-point drop is the price of the
+constraint, not a defect in it, and the constraint is the point: a substrate that can only say
+what it has heard gets repeated chances to re-emit a word, have it reinforced, and crystallize a
+pattern of use around it.
+
+Enable it with `--membrane` on the projector CLI, or `membrane=True` on
+`decode_concept_vocabulary`.
+
+### 9. GPU Offload
 
 The adapter loads every ggml backend it can find and honours `HABITUS_NATIVE_GPU_LAYERS`:
 
@@ -231,7 +273,7 @@ including a load that dominates at 0.6B. ROCm loads but reports no capable devic
 **The default stays CPU.** Backend choice changes float ordering and therefore generated text, and
 byte-reproducibility across machines is worth more than 25% here.
 
-### 9. Formal Verification
+### 10. Formal Verification
 * **407/407 Tests Passing** (29 suites, single foreground process, 826 s): base engine, graph-native seam, cognitive conversability, user affinity, adversarial bounds, and the per-milestone challenger suites.
 * **Forensic Audit Clean**: Zero mock classes, zero prompt leakage, and strict edge-weight conservation ($\sum w = 1.0$).
 

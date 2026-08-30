@@ -65,6 +65,15 @@ class SpeechAttempt:
     construction_edge_ids: tuple[str, ...]
 
 
+def decode_native(stream: bytes) -> str:
+    """Decode native adapter output leniently.
+
+    A generated token piece can be a partial UTF-8 sequence, and strict decoding would
+    abort an entire run over one BPE fragment.
+    """
+    return stream.decode("utf-8", "replace").strip()
+
+
 def codec_environment() -> dict[str, str]:
     environment = os.environ.copy()
     environment["OLLAMA_LIB_DIR"] = "/usr/local/lib/ollama"
@@ -81,13 +90,12 @@ def tokenize_surface_forms(
         [str(codec), str(model), "tokenize", *forms],
         check=False,
         capture_output=True,
-        text=True,
         env=codec_environment(),
         timeout=180,
     )
     if completed.returncode != 0:
-        raise RuntimeError(completed.stderr.strip())
-    result = json.loads(completed.stdout)
+        raise RuntimeError(decode_native(completed.stderr))
+    result = json.loads(decode_native(completed.stdout))
     if int(result["dimension"]) != 1024:
         raise RuntimeError("nursery requires a native 1024D language model")
     return [
@@ -104,13 +112,12 @@ def render_token_ids(model: Path, codec: Path, token_ids: Sequence[int]) -> str:
         [str(codec), str(model), "detokenize", *(str(token) for token in token_ids)],
         check=False,
         capture_output=True,
-        text=True,
         env=codec_environment(),
         timeout=180,
     )
     if completed.returncode != 0:
-        raise RuntimeError(completed.stderr.strip())
-    return str(json.loads(completed.stdout)["text"])
+        raise RuntimeError(decode_native(completed.stderr))
+    return str(json.loads(decode_native(completed.stdout))["text"])
 
 
 def next_pulse(mind: BaseAgenticMemoryRAG, prefix: str) -> tuple[int, str]:

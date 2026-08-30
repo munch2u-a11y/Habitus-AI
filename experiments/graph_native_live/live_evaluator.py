@@ -569,13 +569,17 @@ def run_native_generation(
             cmd,
             check=False,
             capture_output=True,
-            text=True,
             env=environment,
             timeout=180,
         )
+        # A generated token piece can be a partial UTF-8 sequence, so decode leniently
+        # rather than let one BPE fragment abort the turn.
         if completed.returncode != 0:
-            raise RuntimeError(f"Native runner failed (code {completed.returncode}): {completed.stderr.strip()}")
-        return json.loads(completed.stdout)
+            raise RuntimeError(
+                f"Native runner failed (code {completed.returncode}): "
+                f"{completed.stderr.decode('utf-8', 'replace').strip()}"
+            )
+        return json.loads(completed.stdout.decode("utf-8", "replace"))
 
     # Fallback dry runner for offline/mock test environments
     return {

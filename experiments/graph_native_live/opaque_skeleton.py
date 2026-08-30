@@ -45,6 +45,15 @@ MODEL = Path("/home/nemo/Downloads/Qwen3-0.6B-Q8_0.gguf")
 RUNNER = Path(__file__).resolve().parent / "native" / "graph_soft_generator"
 
 
+def decode_native(stream: bytes) -> str:
+    """Decode native adapter output leniently.
+
+    A generated token piece can be a partial UTF-8 sequence, and strict decoding would
+    abort an entire run over one BPE fragment.
+    """
+    return stream.decode("utf-8", "replace").strip()
+
+
 def opaque_unit_vector(key: str, dimension: int = DIMENSION) -> list[float]:
     """Return a stable dense direction with no lexical similarity behavior."""
     payload = hashlib.shake_256(key.encode("utf-8")).digest(dimension * 2)
@@ -316,13 +325,12 @@ def run_native(
         [str(runner), str(model), str(packet), str(maximum_tokens), str(seed)],
         check=False,
         capture_output=True,
-        text=True,
         env=environment,
         timeout=180,
     )
     if completed.returncode != 0:
-        raise RuntimeError(completed.stderr.strip())
-    return json.loads(completed.stdout)
+        raise RuntimeError(decode_native(completed.stderr))
+    return json.loads(decode_native(completed.stdout))
 
 
 def run_experiment(args: argparse.Namespace) -> dict[str, object]:
