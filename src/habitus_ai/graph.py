@@ -20,6 +20,7 @@ from .types import (
     MemoryRecord,
     OutputTrunk,
     OverlapCluster,
+    RecordType,
     TraversalTrace,
     as_tuple,
 )
@@ -38,12 +39,37 @@ PREFERENCE_NODE_IDS = {
 
 @dataclass(frozen=True)
 class WeightSnapshot:
+    """One bounded root-originating flow over the current edge logits.
+
+    ``local_weights`` are conditional sibling probabilities. ``global_weights``
+    are the effective masses that actually reached each edge during the bounded
+    flow. Their sum can exceed one across multiple depths; conservation applies
+    at every frontier and at the root regions, not across all depths at once.
+    """
+
     global_weights: Mapping[str, float]
     effective_logits: Mapping[str, float]
+    local_weights: Mapping[str, float]
+    node_weights: Mapping[str, float]
+    regional_weights: Mapping[str, float]
+    layer_weights: Mapping[str, float]
+    side_starting_mass: Mapping[str, float]
+    starting_node_ids: Mapping[str, str]
+    absorbed_mass: float
+    truncated_mass: float
 
     @property
     def total(self) -> float:
+        """Conserved mass entering the selected cipher root or roots."""
+        return sum(self.side_starting_mass.values())
+
+    @property
+    def cumulative_edge_mass(self) -> float:
         return sum(self.global_weights.values())
+
+    @property
+    def accounted_mass(self) -> float:
+        return self.absorbed_mass + self.truncated_mass
 
 
 class GraphRuntime:
@@ -212,11 +238,17 @@ class GraphRuntime:
         output_trunks: Sequence[OutputTrunk] = (),
         pulse: int = 0,
         evidence_record_ids: Sequence[str] = (),
+        kind: str = "crown",
+        semantic_embedding: bool = True,
     ) -> ConceptNode:
         if concept_id == SELF_ID or concept_id.startswith(("IN:", "OUT:")):
             raise ValueError("concept ID is reserved by the seed topology")
-        vector = list(embedding) if embedding is not None else self.embedder.embed(
-            " ".join((label, *terms))
+        vector = (
+            list(embedding)
+            if embedding is not None
+            else self.embedder.embed(" ".join((label, *terms)))
+            if semantic_embedding
+            else [0.0] * self.embedder.dimension
         )
         if len(vector) != self.embedder.dimension:
             raise ValueError("concept embedding dimension mismatch")
@@ -225,7 +257,7 @@ class GraphRuntime:
             ConceptNode(
                 concept_id=concept_id,
                 label=label,
-                kind="crown",
+                kind=kind,
                 embedding=as_tuple(vector),
                 terms=tuple(dict.fromkeys(tokenize(" ".join((label, *terms))))),
                 vault_id=vault_id,
@@ -283,11 +315,39 @@ class GraphRuntime:
 
     # ------------------------------------------------------------ relative mass
 
-    def weight_snapshot(self, *, now: float | None = None) -> WeightSnapshot:
+    def weight_snapshot(
+        self,
+        *,
+        now: float | None = None,
+        side: GraphSide | None = None,
+        root_node_id: str | None = None,
+        maximum_depth: int = 12,
+    ) -> WeightSnapshot:
+        """Propagate conserved mass from a cipher root using sibling softmaxes.
+
+        A side-specific diagnostic starts that side with mass 1.0. When
+        ``root_node_id`` selects a trunk, its
+        connector from SELF is outside the cipher's competitive denominator.
+        A combined diagnostic snapshot assigns 0.5 to each side at SELF.
+        """
+        if maximum_depth < 1:
+            raise ValueError("maximum_depth must be positive")
+        if root_node_id is not None and side is None:
+            raise ValueError("root_node_id requires a side-specific snapshot")
+        if root_node_id is not None and self.store.get_concept(root_node_id) is None:
+            raise KeyError(f"unknown cipher root: {root_node_id}")
         current = time.time() if now is None else float(now)
         edges = self.store.list_edges()
         if not edges:
-            return WeightSnapshot({}, {})
+            selected = (side,) if side is not None else tuple(GraphSide)
+            share = 1.0 / len(selected)
+            starting_mass = {item.value: share for item in selected}
+            starting_nodes = {
+                item.value: root_node_id or SELF_ID for item in selected
+            }
+            return WeightSnapshot(
+                {}, {}, {}, {}, {}, {}, starting_mass, starting_nodes, 1.0, 0.0
+            )
         logits: dict[str, float] = {}
         for edge in edges:
             recency = 0.0
@@ -297,15 +357,89 @@ class GraphRuntime:
                     -math.log(2.0) * age / self.recency_half_life_seconds
                 )
             logits[edge.edge_id] = edge.log_strength + recency - edge.conflict_penalty
-        maximum = max(logits.values())
-        exponentials = {
-            edge_id: math.exp((value - maximum) / self.temperature)
-            for edge_id, value in logits.items()
+        grouped: dict[tuple[GraphSide, str], list[GraphEdge]] = {}
+        for edge in edges:
+            grouped.setdefault((edge.side, edge.source_id), []).append(edge)
+        local_weights: dict[str, float] = {}
+        for siblings in grouped.values():
+            maximum = max(logits[edge.edge_id] for edge in siblings)
+            exponentials = {
+                edge.edge_id: math.exp(
+                    (logits[edge.edge_id] - maximum) / self.temperature
+                )
+                for edge in siblings
+            }
+            total = sum(exponentials.values()) or 1.0
+            local_weights.update(
+                {edge_id: value / total for edge_id, value in exponentials.items()}
+            )
+
+        selected_sides = (side,) if side is not None else tuple(GraphSide)
+        starting_share = 1.0 / len(selected_sides)
+        side_starting_mass = {
+            selected_side.value: starting_share for selected_side in selected_sides
         }
-        total = sum(exponentials.values()) or 1.0
+        starting_node_ids = {
+            selected_side.value: root_node_id or SELF_ID
+            for selected_side in selected_sides
+        }
+        global_weights: dict[str, float] = {edge.edge_id: 0.0 for edge in edges}
+        node_weights: dict[str, float] = {}
+        regional_weights: dict[str, float] = {}
+        layer_weights: dict[str, float] = {}
+        absorbed_mass = 0.0
+        truncated_mass = 0.0
+
+        outgoing: dict[tuple[GraphSide, str], list[GraphEdge]] = grouped
+        for selected_side in selected_sides:
+            starting_node_id = starting_node_ids[selected_side.value]
+            frontier: dict[str, float] = {starting_node_id: starting_share}
+            node_weights[
+                f"{selected_side.value}:{starting_node_id}"
+            ] = starting_share
+            for depth in range(maximum_depth):
+                next_frontier: dict[str, float] = {}
+                layer_mass = 0.0
+                for source_id, source_mass in frontier.items():
+                    siblings = outgoing.get((selected_side, source_id), ())
+                    if not siblings:
+                        absorbed_mass += source_mass
+                        continue
+                    distributed = 0.0
+                    for edge in siblings:
+                        edge_mass = source_mass * local_weights.get(edge.edge_id, 0.0)
+                        if edge_mass <= 0.0:
+                            continue
+                        global_weights[edge.edge_id] += edge_mass
+                        next_frontier[edge.target_id] = (
+                            next_frontier.get(edge.target_id, 0.0) + edge_mass
+                        )
+                        distributed += edge_mass
+                        layer_mass += edge_mass
+                        if source_id == starting_node_id:
+                            regional_weights[
+                                f"{selected_side.value}:{edge.target_id}"
+                            ] = edge_mass
+                    absorbed_mass += max(0.0, source_mass - distributed)
+                layer_weights[f"{selected_side.value}:{depth}"] = layer_mass
+                for node_id, node_mass in next_frontier.items():
+                    key = f"{selected_side.value}:{node_id}"
+                    node_weights[key] = node_weights.get(key, 0.0) + node_mass
+                frontier = next_frontier
+                if not frontier:
+                    break
+            truncated_mass += sum(frontier.values())
         return WeightSnapshot(
-            {edge_id: value / total for edge_id, value in exponentials.items()},
-            logits,
+            global_weights=global_weights,
+            effective_logits=logits,
+            local_weights=local_weights,
+            node_weights=node_weights,
+            regional_weights=regional_weights,
+            layer_weights=layer_weights,
+            side_starting_mass=side_starting_mass,
+            starting_node_ids=starting_node_ids,
+            absorbed_mass=absorbed_mass,
+            truncated_mass=truncated_mass,
         )
 
     def local_probabilities(
@@ -321,15 +455,19 @@ class GraphRuntime:
             for edge in self.store.list_edges(side)
             if edge.source_id == source_id
         ]
-        total = sum(snap.global_weights.get(edge.edge_id, 0.0) for edge in outgoing)
         if not outgoing:
             return {}
+        probabilities = {
+            edge.edge_id: snap.local_weights.get(edge.edge_id, 0.0)
+            for edge in outgoing
+        }
+        total = sum(probabilities.values())
         if total <= 0.0:
             share = 1.0 / len(outgoing)
             return {edge.edge_id: share for edge in outgoing}
         return {
-            edge.edge_id: snap.global_weights.get(edge.edge_id, 0.0) / total
-            for edge in outgoing
+            edge_id: probability / total
+            for edge_id, probability in probabilities.items()
         }
 
     # --------------------------------------------------------------- Y traversal
@@ -342,24 +480,35 @@ class GraphRuntime:
         target_id: str,
         endpoint_score: float,
         required_input_trunk: InputTrunk | None = None,
+        required_output_trunk: OutputTrunk | None = None,
         now: float | None = None,
         mark_active: bool = True,
     ) -> TraversalTrace | None:
         current = time.time() if now is None else float(now)
         edges = self.store.list_edges(side)
-        snapshot = self.weight_snapshot(now=current)
         outgoing: dict[str, list[GraphEdge]] = {}
         for edge in edges:
             outgoing.setdefault(edge.source_id, []).append(edge)
-        required_node = (
+        input_root = (
             INPUT_NODE_IDS[required_input_trunk]
             if side == GraphSide.INPUT and required_input_trunk is not None
             else None
         )
+        output_root = (
+            OUTPUT_NODE_IDS[required_output_trunk]
+            if side == GraphSide.OUTPUT and required_output_trunk is not None
+            else None
+        )
+        cipher_root = input_root or output_root or SELF_ID
+        snapshot = self.weight_snapshot(
+            now=current,
+            side=side,
+            root_node_id=cipher_root if cipher_root != SELF_ID else None,
+        )
 
-        distances: dict[str, float] = {SELF_ID: 0.0}
+        distances: dict[str, float] = {cipher_root: 0.0}
         previous: dict[str, tuple[str, str]] = {}
-        queue: list[tuple[float, str]] = [(0.0, SELF_ID)]
+        queue: list[tuple[float, str]] = [(0.0, cipher_root)]
         visited: set[str] = set()
 
         while queue:
@@ -371,8 +520,6 @@ class GraphRuntime:
                 break
             local = self.local_probabilities(node_id, side, snapshot=snapshot)
             for edge in outgoing.get(node_id, ()):
-                if node_id == SELF_ID and required_node and edge.target_id != required_node:
-                    continue
                 probability = local.get(edge.edge_id, 0.0)
                 edge_time = (
                     edge.delta_y / (1e-6 + probability)
@@ -389,7 +536,7 @@ class GraphRuntime:
         nodes = [target_id]
         edge_ids: list[str] = []
         cursor = target_id
-        while cursor != SELF_ID:
+        while cursor != cipher_root:
             if cursor not in previous:
                 return None
             parent, edge_id = previous[cursor]
@@ -398,6 +545,17 @@ class GraphRuntime:
             cursor = parent
         nodes.reverse()
         edge_ids.reverse()
+        connector_cost = 0.0
+        if cipher_root != SELF_ID:
+            connector = self.store.find_edge(side, SELF_ID, cipher_root)
+            if connector is None or connector.archived:
+                return None
+            nodes.insert(0, SELF_ID)
+            edge_ids.insert(0, connector.edge_id)
+            # The selected intake/action lane is causal state, not a sibling
+            # choice. Preserve its physical depth and conflict cost without
+            # normalizing it against the other independent ciphers.
+            connector_cost = connector.delta_y + connector.conflict_penalty
         if mark_active:
             for edge_id in edge_ids:
                 self.store.update_edge_state(edge_id, last_active_time=current)
@@ -408,10 +566,73 @@ class GraphRuntime:
             target_node_id=target_id,
             path_node_ids=tuple(nodes),
             path_edge_ids=tuple(edge_ids),
-            total_travel_time=round(distances[target_id], 8),
+            total_travel_time=round(connector_cost + distances[target_id], 8),
             endpoint_score=float(endpoint_score),
         )
         self.store.save_trace(pulse_id, trace)
+        return trace
+
+    def trace_explicit_path(
+        self,
+        *,
+        pulse_id: str,
+        side: GraphSide,
+        path_node_ids: Sequence[str],
+        endpoint_score: float = 1.0,
+        now: float | None = None,
+        mark_active: bool = True,
+    ) -> TraversalTrace:
+        """Validate and score a known causal path without re-routing it.
+
+        X/Y search is appropriate when the route is unknown. An observed tool
+        return already identifies the motor fiber that produced it, so letting
+        Dijkstra substitute a cheaper sibling would corrupt causal learning.
+        """
+        nodes = tuple(path_node_ids)
+        if not nodes or nodes[0] != SELF_ID or len(nodes) < 2:
+            raise ValueError("an explicit path must begin at SELF and contain an edge")
+        current = time.time() if now is None else float(now)
+        valid_roots = (
+            set(INPUT_NODE_IDS.values())
+            if side == GraphSide.INPUT
+            else set(OUTPUT_NODE_IDS.values())
+        )
+        cipher_root = nodes[1] if nodes[1] in valid_roots else SELF_ID
+        snapshot = self.weight_snapshot(
+            now=current,
+            side=side,
+            root_node_id=cipher_root if cipher_root != SELF_ID else None,
+        )
+        edge_ids: list[str] = []
+        travel_time = 0.0
+        for source_id, target_id in zip(nodes, nodes[1:]):
+            edge = self.store.find_edge(side, source_id, target_id)
+            if edge is None or edge.archived:
+                raise ValueError(
+                    f"explicit {side.value} path has no edge: {source_id} -> {target_id}"
+                )
+            if source_id == SELF_ID and target_id == cipher_root:
+                probability = 1.0
+            else:
+                local = self.local_probabilities(source_id, side, snapshot=snapshot)
+                probability = local.get(edge.edge_id, 0.0)
+            travel_time += edge.delta_y / (1e-6 + probability) + edge.conflict_penalty
+            edge_ids.append(edge.edge_id)
+            if mark_active:
+                self.store.update_edge_state(edge.edge_id, last_active_time=current)
+        trace = TraversalTrace(
+            trace_id=f"trace:{pulse_id}:{side.value}:{nodes[-1]}",
+            side=side,
+            start_node_id=SELF_ID,
+            target_node_id=nodes[-1],
+            path_node_ids=nodes,
+            path_edge_ids=tuple(edge_ids),
+            total_travel_time=round(travel_time, 8),
+            endpoint_score=float(endpoint_score),
+        )
+        self.store.save_trace(pulse_id, trace)
+        if mark_active:
+            self.store.mark_concepts_active(nodes, 0)
         return trace
 
     def expanded_concept_ids(
@@ -426,7 +647,7 @@ class GraphRuntime:
         path_nodes = {
             node_id for trace in traces for node_id in trace.path_node_ids
         }
-        snapshot = self.weight_snapshot()
+        snapshot = self.weight_snapshot(side=side)
         candidates: list[tuple[float, str]] = []
         for source_id in path_nodes:
             local = self.local_probabilities(source_id, side, snapshot=snapshot)
@@ -506,8 +727,28 @@ class GraphRuntime:
             ) is None:
                 errors.append(f"lower preference edge is missing: {trunk.value}:{band}")
         snapshot = self.weight_snapshot()
-        if snapshot.global_weights and abs(snapshot.total - 1.0) > tolerance:
-            errors.append(f"global edge mass is {snapshot.total}, expected 1.0")
+        if snapshot.regional_weights and abs(snapshot.total - 1.0) > tolerance:
+            errors.append(f"global root mass is {snapshot.total}, expected 1.0")
+        if abs(snapshot.accounted_mass - 1.0) > tolerance:
+            errors.append(
+                f"bounded flow accounts for {snapshot.accounted_mass}, expected 1.0"
+            )
+        for selected_side, starting_mass in snapshot.side_starting_mass.items():
+            previous = starting_mass
+            depths = sorted(
+                (
+                    int(key.rsplit(":", 1)[-1]),
+                    mass,
+                )
+                for key, mass in snapshot.layer_weights.items()
+                if key.startswith(f"{selected_side}:")
+            )
+            for depth, mass in depths:
+                if mass > previous + tolerance:
+                    errors.append(
+                        f"{selected_side} layer {depth} creates mass: {mass} > {previous}"
+                    )
+                previous = mass
         for side in GraphSide:
             sources = {edge.source_id for edge in self.store.list_edges(side)}
             for source_id in sources:
@@ -537,8 +778,17 @@ class GraphRuntime:
                 errors.append(f"lower child carries semantic payload: {child.concept_id}")
             if not child.vault_id:
                 errors.append(f"child lower vault is missing: {child.concept_id}")
-            if not cluster.semantic_node_id or self.store.get_concept(cluster.semantic_node_id) is None:
-                errors.append(f"child semantic port is missing: {child.concept_id}")
+            if cluster.semantic_node_id is not None:
+                semantic = self.store.get_concept(cluster.semantic_node_id)
+                if semantic is None:
+                    errors.append(f"child semantic port is missing: {child.concept_id}")
+                elif any(
+                    not self._record_has_membrane_words(record)
+                    for record in self.store.records_for_vault(semantic.vault_id)
+                ):
+                    errors.append(
+                        f"semantic port has non-HEAR word evidence: {child.concept_id}"
+                    )
         return errors
 
     # --------------------------------------------------------------- growth stage
@@ -629,6 +879,7 @@ class GraphRuntime:
         trace: TraversalTrace,
         *,
         pulse: int,
+        grow_visited_children: bool = True,
     ) -> None:
         experience_id = self._experience_id(record)
         state = self.store.get_experience_state(experience_id)
@@ -654,7 +905,7 @@ class GraphRuntime:
                     metadata={"projection": "traversal"},
                 )
             )
-        if trace.side == GraphSide.INPUT:
+        if trace.side == GraphSide.INPUT and grow_visited_children:
             trunk = next(
                 (
                     trunk
@@ -694,6 +945,81 @@ class GraphRuntime:
             token for token, _ in sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:4]
         ]
 
+    @staticmethod
+    def _record_has_membrane_words(record: MemoryRecord) -> bool:
+        marker = record.metadata.get("membrane_words")
+        if marker is not None:
+            return (
+                bool(marker)
+                and record.metadata.get("causal_trunk") == InputTrunk.HEAR.value
+            )
+        return record.record_type in {
+            RecordType.INBOUND_MESSAGE,
+            RecordType.FACT,
+            RecordType.RAW_MEMORY,
+        }
+
+    def attach_semantic_port(
+        self,
+        child_node_id: str,
+        record: MemoryRecord,
+        *,
+        pulse: int,
+        terms: Sequence[str] = (),
+    ) -> ConceptNode:
+        """Attach a HEAR-learned word port to an existing nonverbal child."""
+        child = self.store.get_concept(child_node_id)
+        if child is None or child.kind != "child":
+            raise ValueError("semantic ports attach only to promoted child nodes")
+        if not self._record_has_membrane_words(record):
+            raise ValueError("semantic port evidence must carry HEAR membrane words")
+        cluster = self.store.overlap_cluster_for_child(child_node_id)
+        if cluster is None:
+            raise ValueError("semantic port child has no overlap cluster")
+        digest = cluster.cluster_id.rsplit(":", 1)[-1]
+        semantic_id = cluster.semantic_node_id or f"concept:auto:{digest}"
+        selected_terms = tuple(terms) or tuple(self._growth_terms(record.text))
+        semantic = self.store.add_concept(
+            ConceptNode(
+                concept_id=semantic_id,
+                label=(" ".join(selected_terms[:2]).title() or f"Concept {digest[:8]}"),
+                kind="crown",
+                embedding=record.embedding,
+                terms=selected_terms,
+                vault_id=f"vault:{semantic_id}",
+                created_pulse=pulse,
+                last_active_pulse=pulse,
+            )
+        )
+        self.store.update_concept_embedding(
+            semantic_id, record.embedding, terms=selected_terms
+        )
+        edge = self._ensure_edge(
+            GraphSide.INPUT,
+            child_node_id,
+            semantic_id,
+            delta_y=1.0,
+            created_pulse=pulse,
+        )
+        self.store.add_to_vault(semantic.vault_id, record.record_id, semantic_id)
+        self.store.add_edge_evidence(edge.edge_id, record.record_id)
+        self.store.put_overlap_cluster(
+            OverlapCluster(
+                cluster_id=cluster.cluster_id,
+                parent_node_id=cluster.parent_node_id,
+                centroid=cluster.centroid,
+                record_ids=cluster.record_ids,
+                experience_ids=cluster.experience_ids,
+                preference_mean=cluster.preference_mean,
+                confidence_mean=cluster.confidence_mean,
+                first_pulse=cluster.first_pulse,
+                last_pulse=max(cluster.last_pulse, pulse),
+                child_node_id=child_node_id,
+                semantic_node_id=semantic_id,
+            )
+        )
+        return semantic
+
     def stage_growth(
         self,
         record: MemoryRecord,
@@ -704,6 +1030,7 @@ class GraphRuntime:
         promotion_count: int | None = None,
         overlap_threshold: float | None = None,
         preferred_cluster_id: str | None = None,
+        semantic_port: bool = True,
     ) -> str | None:
         experience_id = self._experience_id(record)
         state = self.store.get_experience_state(experience_id)
@@ -742,12 +1069,14 @@ class GraphRuntime:
             compatible.append((similarity, cluster))
 
         if preferred_cluster_id is not None and not compatible:
-            return clusters[0].semantic_node_id if clusters else None
+            if not clusters:
+                return None
+            return clusters[0].semantic_node_id or clusters[0].child_node_id
 
         if compatible:
             _, cluster = max(compatible, key=lambda item: (item[0], item[1].cluster_id))
             if experience_id in cluster.experience_ids:
-                return cluster.semantic_node_id
+                return cluster.semantic_node_id or cluster.child_node_id
             old_count = len(cluster.experience_ids)
             centroid = [
                 (old * old_count + new) / (old_count + 1)
@@ -791,18 +1120,32 @@ class GraphRuntime:
         if len(updated.experience_ids) < required:
             return None
 
+        if semantic_port and any(
+            not self._record_has_membrane_words(item)
+            for item in self.store.get_records(updated.record_ids)
+        ):
+            raise ValueError("semantic promotion requires HEAR membrane word evidence")
+
         records = self.store.get_records(updated.record_ids)
-        term_counts: dict[str, int] = {}
-        for supporting_record in records:
-            for term in self._growth_terms(supporting_record.text):
-                term_counts[term] = term_counts.get(term, 0) + 1
-        terms = [
-            term
-            for term, _ in sorted(term_counts.items(), key=lambda item: (-item[1], item[0]))[:6]
-        ]
+        terms: list[str] = []
+        if semantic_port:
+            term_counts: dict[str, int] = {}
+            for supporting_record in records:
+                for term in self._growth_terms(supporting_record.text):
+                    term_counts[term] = term_counts.get(term, 0) + 1
+            terms = [
+                term
+                for term, _ in sorted(
+                    term_counts.items(), key=lambda item: (-item[1], item[0])
+                )[:6]
+            ]
         digest = updated.cluster_id.rsplit(":", 1)[-1]
         child_id = updated.child_node_id or f"child:auto:{digest}"
-        semantic_id = updated.semantic_node_id or f"concept:auto:{digest}"
+        semantic_id = (
+            updated.semantic_node_id or f"concept:auto:{digest}"
+            if semantic_port
+            else None
+        )
         child = self.store.add_concept(
             ConceptNode(
                 concept_id=child_id,
@@ -817,24 +1160,36 @@ class GraphRuntime:
         )
         if child.vault_id != f"lower-vault:{child_id}":
             self.store.set_concept_vault(child_id, f"lower-vault:{child_id}")
-        semantic = self.store.add_concept(
-            ConceptNode(
-                concept_id=semantic_id,
-                label=(" ".join(terms[:2]).title() or f"Concept {digest[:8]}"),
-                kind="crown",
-                embedding=updated.centroid,
-                terms=tuple(terms),
-                vault_id=f"vault:{semantic_id}",
-                created_pulse=pulse,
-                last_active_pulse=pulse,
+        semantic = None
+        if semantic_id is not None:
+            semantic = self.store.add_concept(
+                ConceptNode(
+                    concept_id=semantic_id,
+                    label=(" ".join(terms[:2]).title() or f"Concept {digest[:8]}"),
+                    kind="crown",
+                    embedding=updated.centroid,
+                    terms=tuple(terms),
+                    vault_id=f"vault:{semantic_id}",
+                    created_pulse=pulse,
+                    last_active_pulse=pulse,
+                )
             )
-        )
-        self.store.update_concept_embedding(semantic_id, updated.centroid, terms=terms)
+            self.store.update_concept_embedding(
+                semantic_id, updated.centroid, terms=terms
+            )
         parent_edge = self._ensure_edge(
             GraphSide.INPUT, parent_id, child_id, delta_y=1.0, created_pulse=pulse
         )
-        semantic_edge = self._ensure_edge(
-            GraphSide.INPUT, child_id, semantic_id, delta_y=1.0, created_pulse=pulse
+        semantic_edge = (
+            self._ensure_edge(
+                GraphSide.INPUT,
+                child_id,
+                semantic_id,
+                delta_y=1.0,
+                created_pulse=pulse,
+            )
+            if semantic_id is not None
+            else None
         )
         for supporting_record in records:
             supporting_experience = self._experience_id(supporting_record)
@@ -844,7 +1199,10 @@ class GraphRuntime:
                 min(1.0, supporting_state.preference_weight) if supporting_state else 0.0
             )
             self.store.add_to_vault(child.vault_id, supporting_record.record_id, child_id)
-            self.store.add_to_vault(semantic.vault_id, supporting_record.record_id, semantic_id)
+            if semantic is not None:
+                self.store.add_to_vault(
+                    semantic.vault_id, supporting_record.record_id, semantic.concept_id
+                )
             self.store.add_experience_projection(
                 ExperienceProjection(
                     experience_id=supporting_experience,
@@ -860,7 +1218,10 @@ class GraphRuntime:
                 )
             )
             self.store.add_edge_evidence(parent_edge.edge_id, supporting_record.record_id)
-            self.store.add_edge_evidence(semantic_edge.edge_id, supporting_record.record_id)
+            if semantic_edge is not None:
+                self.store.add_edge_evidence(
+                    semantic_edge.edge_id, supporting_record.record_id
+                )
         promoted = OverlapCluster(
             cluster_id=updated.cluster_id,
             parent_node_id=updated.parent_node_id,
@@ -875,4 +1236,4 @@ class GraphRuntime:
             semantic_node_id=semantic_id,
         )
         self.store.put_overlap_cluster(promoted)
-        return semantic_id
+        return semantic_id or child_id

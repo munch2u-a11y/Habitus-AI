@@ -16,6 +16,7 @@ from .types import (
     GraphSide,
     InputTrunk,
     MemoryRecord,
+    RecordType,
     RetrievalHit,
     RetrievalPacket,
     SurfaceCandidate,
@@ -81,6 +82,22 @@ class RetrievalEngine:
         self.maximum_expansions = max(0, maximum_expansions)
         self.base_context_chars = max(512, base_context_chars)
         self.maximum_context_chars = max(self.base_context_chars, maximum_context_chars)
+
+    @staticmethod
+    def _language_recallable(record: MemoryRecord) -> bool:
+        """Whether exact record words are allowed into language-facing recall."""
+        marker = record.metadata.get("membrane_words")
+        if marker is not None:
+            return bool(marker)
+        # Compatibility for immutable records created before causal membrane
+        # metadata existed. Sensory and receipt types were never HEAR speech.
+        return record.record_type not in {
+            RecordType.OBSERVATION,
+            RecordType.NOTIFICATION,
+            RecordType.TOOL_RESULT,
+            RecordType.RECEIPT,
+            RecordType.TOOL_CALL,
+        }
 
     def _direct_hits(
         self,
@@ -171,6 +188,7 @@ class RetrievalEngine:
             records = [
                 record for record in self.store.records_for_vault(concept.vault_id)
                 if record.record_id not in excluded
+                and self._language_recallable(record)
             ]
             lexical = bm25_scores(query, records)
             ranked: list[RetrievalHit] = []
@@ -243,7 +261,11 @@ class RetrievalEngine:
         exclude_record_ids: Iterable[str] = (),
     ) -> tuple[RetrievalPacket, list[RetrievalHit]]:
         excluded = set(exclude_record_ids)
-        records = self.store.list_active_records()
+        records = [
+            record
+            for record in self.store.list_active_records()
+            if self._language_recallable(record)
+        ]
         direct = self._direct_hits(query_embedding, records, excluded)
         candidates = self.surface.project(
             query,

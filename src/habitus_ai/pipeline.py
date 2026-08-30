@@ -10,7 +10,12 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
 from .context import render_context
-from .embeddings import DeterministicHashEmbedder, Embedder, cosine_similarity
+from .embeddings import (
+    DeterministicHashEmbedder,
+    Embedder,
+    cosine_similarity,
+    opaque_payload_embedding,
+)
 from .graph import (
     INPUT_NODE_IDS,
     OUTPUT_NODE_IDS,
@@ -22,9 +27,12 @@ from .store import MindStore
 from .surface import SemanticSurface
 from .types import (
     ContextBundle,
+    CycleReturnResult,
     EventEnvelope,
     EventKind,
     ExperienceProjection,
+    ExperienceCycle,
+    ExperienceReturn,
     ExperienceState,
     GraphSide,
     InputTrunk,
@@ -168,6 +176,8 @@ class BaseAgenticMemoryRAG:
         input_trunks: Sequence[str | InputTrunk] = (),
         output_trunks: Sequence[str | OutputTrunk] = (),
         evidence_record_ids: Sequence[str] = (),
+        kind: str = "crown",
+        semantic_embedding: bool = True,
     ):
         return self.graph.add_concept(
             concept_id,
@@ -177,6 +187,8 @@ class BaseAgenticMemoryRAG:
             output_trunks=self._output_trunks(output_trunks),
             pulse=self.pulse,
             evidence_record_ids=evidence_record_ids,
+            kind=kind,
+            semantic_embedding=semantic_embedding,
         )
 
     def add_relation(
@@ -226,6 +238,20 @@ class BaseAgenticMemoryRAG:
     def overlap_clusters(self, parent_node_id: str) -> tuple[OverlapCluster, ...]:
         return tuple(self.store.list_overlap_clusters(parent_node_id))
 
+    def experience_cycle(self, cycle_id: str) -> ExperienceCycle | None:
+        return self.store.get_experience_cycle(cycle_id)
+
+    def open_experience_cycles(
+        self,
+        output_trunk: OutputTrunk | str | None = None,
+    ) -> tuple[ExperienceCycle, ...]:
+        trunk = (
+            output_trunk.value
+            if isinstance(output_trunk, OutputTrunk)
+            else output_trunk
+        )
+        return tuple(self.store.list_open_experience_cycles(output_trunk=trunk))
+
     # -------------------------------------------------------------- persistence
 
     def remember(
@@ -244,6 +270,8 @@ class BaseAgenticMemoryRAG:
         metadata: Mapping[str, Any] | None = None,
         supersedes_id: str | None = None,
         allow_growth: bool = True,
+        input_trunk: InputTrunk | str | None = None,
+        embedding: Sequence[float] | None = None,
     ) -> MemoryRecord:
         pulse_number, _ = self._next_pulse()
         resolved_kind = kind if isinstance(kind, EventKind) else EventKind(kind)
@@ -257,29 +285,6 @@ class BaseAgenticMemoryRAG:
         timestamp = timestamp or utc_now()
         event_id = event_id or f"event:{uuid.uuid4().hex}"
         record_id = record_id or f"record:{uuid.uuid4().hex}"
-        vector = self.embedder.embed(text)
-        record = MemoryRecord(
-            record_id=record_id,
-            event_id=event_id,
-            record_type=resolved_record_type,
-            source_id=source_id,
-            timestamp=timestamp,
-            text=text,
-            embedding=as_tuple(vector),
-            provenance=dict(provenance or {}),
-            metadata=dict(metadata or {}),
-            supersedes_id=supersedes_id,
-        )
-        self.store.add_record(record)
-        assigned = []
-        for concept_id in concept_ids:
-            concept = self.store.get_concept(concept_id)
-            if concept is None:
-                raise KeyError(f"unknown concept: {concept_id}")
-            if concept.vault_id:
-                self.store.add_to_vault(concept.vault_id, record.record_id, concept_id)
-                assigned.append(concept_id)
-
         envelope = EventEnvelope(
             event_id=event_id,
             kind=resolved_kind,
@@ -290,9 +295,72 @@ class BaseAgenticMemoryRAG:
             provenance=dict(provenance or {}),
             metadata=dict(metadata or {}),
         )
-        trunk = self.graph.route_event(envelope)
+        trunk = (
+            input_trunk
+            if isinstance(input_trunk, InputTrunk)
+            else InputTrunk(input_trunk)
+            if input_trunk is not None
+            else self.graph.route_event(envelope)
+        )
+        is_output = resolved_record_type in {
+            RecordType.OUTBOUND_MESSAGE,
+            RecordType.TOOL_CALL,
+        }
+        lexical_input = not is_output and trunk == InputTrunk.HEAR
+        membrane_words = lexical_input or resolved_record_type == RecordType.OUTBOUND_MESSAGE
+        combined_metadata = {
+            **dict(metadata or {}),
+            "membrane_words": membrane_words,
+        }
+        if is_output:
+            combined_metadata["membrane_lane"] = (
+                OutputTrunk.SPEAK.value
+                if resolved_record_type == RecordType.OUTBOUND_MESSAGE
+                else None
+            )
+        else:
+            combined_metadata["causal_trunk"] = trunk.value
+            combined_metadata["membrane_lane"] = (
+                InputTrunk.HEAR.value if lexical_input else None
+            )
+        vector = (
+            list(embedding)
+            if embedding is not None
+            else self.embedder.embed(text)
+            if membrane_words
+            else opaque_payload_embedding(
+                text,
+                self.embedder.dimension,
+                namespace=f"{trunk.value}:{resolved_record_type.value}",
+            )
+        )
+        if len(vector) != self.embedder.dimension:
+            raise ValueError("record embedding dimension mismatch")
+        record = MemoryRecord(
+            record_id=record_id,
+            event_id=event_id,
+            record_type=resolved_record_type,
+            source_id=source_id,
+            timestamp=timestamp,
+            text=text,
+            embedding=as_tuple(vector),
+            provenance=dict(provenance or {}),
+            metadata=combined_metadata,
+            supersedes_id=supersedes_id,
+        )
+        self.store.add_record(record)
+        assigned = []
+        for concept_id in concept_ids:
+            concept = self.store.get_concept(concept_id)
+            if concept is None:
+                raise KeyError(f"unknown concept: {concept_id}")
+            if concept.vault_id and (
+                lexical_input or concept.kind not in {"crown", "lexical"}
+            ):
+                self.store.add_to_vault(concept.vault_id, record.record_id, concept_id)
+                assigned.append(concept_id)
         preference_node_id = None
-        if resolved_record_type != RecordType.OUTBOUND_MESSAGE:
+        if not is_output:
             preference_node_id = self.graph.deposit_experience(
                 record,
                 input_trunk=trunk,
@@ -301,13 +369,17 @@ class BaseAgenticMemoryRAG:
         if (
             not assigned
             and allow_growth
-            and resolved_record_type != RecordType.OUTBOUND_MESSAGE
+            and not is_output
         ):
-            candidates = self.surface.project(
-                text,
-                vector,
-                side=GraphSide.INPUT,
-                event_kind=resolved_kind,
+            candidates = (
+                self.surface.project(
+                    text,
+                    vector,
+                    side=GraphSide.INPUT,
+                    event_kind=resolved_kind,
+                )
+                if lexical_input
+                else []
             )
             reachable = []
             for candidate in candidates:
@@ -333,8 +405,194 @@ class BaseAgenticMemoryRAG:
                     input_trunk=trunk,
                     pulse=pulse_number,
                     parent_node_id=preference_node_id,
+                    semantic_port=lexical_input,
                 )
         return record
+
+    def begin_output_cycle(
+        self,
+        text: str,
+        decision: OutputDecision,
+        *,
+        source_id: str = "self",
+        record_type: RecordType | str = RecordType.OUTBOUND_MESSAGE,
+        record_id: str | None = None,
+        event_id: str | None = None,
+        cycle_id: str | None = None,
+        provenance: Mapping[str, Any] | None = None,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> ExperienceCycle:
+        """Persist an action before any consequence is known.
+
+        This opens the native memory unit: SELF -> output -> return -> SELF.
+        Returns may be appended later and only a terminal return closes it.
+        """
+        if decision.private or decision.trunk is None:
+            raise ValueError("only externalized outputs can open an experience cycle")
+        resolved_cycle_id = cycle_id or f"experience:{uuid.uuid4().hex}"
+        combined_metadata = {
+            **dict(metadata or {}),
+            "experience_id": resolved_cycle_id,
+            "cycle_role": "output",
+            "output_trunk": decision.trunk.value,
+        }
+        record = self.remember(
+            text,
+            kind=EventKind.MESSAGE,
+            source_id=source_id,
+            record_type=record_type,
+            record_id=record_id,
+            event_id=event_id,
+            provenance=provenance,
+            metadata=combined_metadata,
+            allow_growth=False,
+        )
+        if decision.trace is not None:
+            self.graph.deposit_trace(record, decision.trace, pulse=self.pulse)
+        cycle = ExperienceCycle(
+            cycle_id=resolved_cycle_id,
+            output_record_id=record.record_id,
+            output_pulse_id=decision.pulse_id,
+            output_trunk=decision.trunk,
+            credited_edge_ids=(decision.trace.path_edge_ids if decision.trace else ()),
+            opened_pulse=self.pulse,
+            metadata=dict(metadata or {}),
+        )
+        return self.store.save_experience_cycle(cycle)
+
+    def record_cycle_return(
+        self,
+        cycle_id: str,
+        text: str,
+        *,
+        input_trunk: InputTrunk | str,
+        status: str,
+        stability_delta: float,
+        verified: bool,
+        terminal: bool = True,
+        source_id: str = "environment",
+        record_type: RecordType | str = RecordType.OBSERVATION,
+        record_id: str | None = None,
+        event_id: str | None = None,
+        return_concept_id: str | None = None,
+        return_path_node_ids: Sequence[str] = (),
+        preference_confidence: float = 1.0,
+        evidence_quality: float = 1.0,
+        provenance: Mapping[str, Any] | None = None,
+        metadata: Mapping[str, Any] | None = None,
+        embedding: Sequence[float] | None = None,
+        allow_growth: bool | None = None,
+    ) -> CycleReturnResult:
+        """Attach an observed consequence to its originating output and learn."""
+        cycle = self.store.get_experience_cycle(cycle_id)
+        if cycle is None:
+            raise KeyError(f"unknown experience cycle: {cycle_id}")
+        if cycle.status != "open":
+            raise ValueError(f"experience cycle is already closed: {cycle_id}")
+        resolved_trunk = (
+            input_trunk
+            if isinstance(input_trunk, InputTrunk)
+            else InputTrunk(input_trunk)
+        )
+        combined_metadata = {
+            **dict(metadata or {}),
+            "experience_id": cycle_id,
+            "cycle_role": "return",
+            "returns_to": cycle.output_record_id,
+            "return_status": str(status),
+            "stability_delta": float(stability_delta),
+            "preference_confidence": float(preference_confidence),
+            "verified": bool(verified),
+            "terminal": bool(terminal),
+        }
+        record = self.remember(
+            text,
+            kind=(EventKind.MESSAGE if resolved_trunk == InputTrunk.HEAR else EventKind.OBSERVATION),
+            source_id=source_id,
+            correlation_id=cycle.output_record_id,
+            record_type=record_type,
+            record_id=record_id,
+            event_id=event_id,
+            concept_ids=((return_concept_id,) if return_concept_id else ()),
+            provenance=provenance,
+            metadata=combined_metadata,
+            allow_growth=(
+                return_concept_id is None
+                if allow_growth is None
+                else bool(allow_growth)
+            ),
+            input_trunk=resolved_trunk,
+            embedding=embedding,
+        )
+        self.store.add_record_link(
+            record.record_id,
+            "returns_to",
+            cycle.output_record_id,
+            {"cycle_id": cycle_id, "status": str(status), "verified": bool(verified)},
+        )
+        if return_path_node_ids:
+            expected_trunk_node = INPUT_NODE_IDS[resolved_trunk]
+            if len(return_path_node_ids) < 2 or return_path_node_ids[1] != expected_trunk_node:
+                raise ValueError(
+                    f"explicit return path must begin SELF -> {expected_trunk_node}"
+                )
+            if return_concept_id is not None and return_path_node_ids[-1] != return_concept_id:
+                raise ValueError("explicit return path does not end at return_concept_id")
+            trace = self.graph.trace_explicit_path(
+                pulse_id=f"return:{self.pulse}",
+                side=GraphSide.INPUT,
+                path_node_ids=return_path_node_ids,
+                endpoint_score=1.0,
+                mark_active=True,
+            )
+            self.graph.deposit_trace(record, trace, pulse=self.pulse)
+        elif return_concept_id is not None:
+            trace = self.graph.traverse(
+                pulse_id=f"return:{self.pulse}",
+                side=GraphSide.INPUT,
+                target_id=return_concept_id,
+                endpoint_score=1.0,
+                required_input_trunk=resolved_trunk,
+                mark_active=True,
+            )
+            if trace is None:
+                raise ValueError(
+                    f"return concept {return_concept_id!r} is not reachable through {resolved_trunk.value}"
+                )
+            self.graph.deposit_trace(record, trace, pulse=self.pulse)
+        observed = ExperienceReturn(
+            cycle_id=cycle_id,
+            record_id=record.record_id,
+            input_trunk=resolved_trunk,
+            status=str(status),
+            stability_delta=float(stability_delta),
+            verified=bool(verified),
+            terminal=bool(terminal),
+            pulse=self.pulse,
+            metadata=dict(metadata or {}),
+        )
+        updated_cycle = self.store.add_experience_return(observed)
+        outcome = self.record_outcome(
+            OutputDecision(
+                pulse_id=cycle.output_pulse_id,
+                trunk=cycle.output_trunk,
+                confidence=1.0,
+                trace=None,
+            ),
+            stability_delta=stability_delta,
+            verified=verified,
+            proposal_id=cycle.output_record_id,
+            receipt_id=record.record_id,
+            evidence_quality=evidence_quality,
+            credited_edge_ids=cycle.credited_edge_ids,
+            metadata={
+                **dict(metadata or {}),
+                "cycle_id": cycle_id,
+                "return_status": str(status),
+                "terminal": bool(terminal),
+            },
+        )
+        return CycleReturnResult(updated_cycle, observed, record, outcome)
 
     # ---------------------------------------------------------------- retrieval
 
@@ -415,10 +673,37 @@ class BaseAgenticMemoryRAG:
         *,
         private: bool = False,
         effect_hint: OutputTrunk | str | None = None,
+        target_concept_id: str | None = None,
+        required_output_trunk: OutputTrunk | str | None = None,
     ) -> OutputDecision:
         pulse_number, pulse_id = self._next_pulse()
         if private:
             return OutputDecision(pulse_id, None, 1.0, None, private=True)
+        required_trunk = (
+            required_output_trunk
+            if isinstance(required_output_trunk, OutputTrunk)
+            else OutputTrunk(required_output_trunk)
+            if required_output_trunk is not None
+            else None
+        )
+        if target_concept_id is not None:
+            concept = self.store.get_concept(target_concept_id)
+            if concept is None:
+                raise KeyError(f"unknown output concept: {target_concept_id}")
+            trace = self.graph.traverse(
+                pulse_id=pulse_id,
+                side=GraphSide.OUTPUT,
+                target_id=target_concept_id,
+                endpoint_score=1.0,
+                required_output_trunk=required_trunk,
+                mark_active=True,
+            )
+            if trace is None:
+                raise ValueError(f"output concept is unreachable: {target_concept_id}")
+            trunk = self._trunk_from_trace(trace)
+            if trunk is None:
+                raise ValueError(f"output concept has no action trunk: {target_concept_id}")
+            return OutputDecision(pulse_id, trunk, 1.0, trace)
         hint = (
             effect_hint
             if isinstance(effect_hint, OutputTrunk)
@@ -427,11 +712,14 @@ class BaseAgenticMemoryRAG:
             else None
         )
         if hint is not None:
+            if required_trunk is not None and required_trunk != hint:
+                raise ValueError("effect_hint and required_output_trunk disagree")
             trace = self.graph.traverse(
                 pulse_id=pulse_id,
                 side=GraphSide.OUTPUT,
                 target_id=OUTPUT_NODE_IDS[hint],
                 endpoint_score=1.0,
+                required_output_trunk=hint,
                 mark_active=True,
             )
             return OutputDecision(pulse_id, hint, 1.0, trace)
@@ -453,6 +741,7 @@ class BaseAgenticMemoryRAG:
                 side=GraphSide.OUTPUT,
                 target_id=candidate.concept_id,
                 endpoint_score=candidate.joint_score,
+                required_output_trunk=required_trunk,
                 mark_active=False,
             )
             if trace is not None:
@@ -499,10 +788,17 @@ class BaseAgenticMemoryRAG:
         receipt_id: str | None = None,
         evidence_quality: float = 1.0,
         metadata: Mapping[str, Any] | None = None,
+        credited_edge_ids: Sequence[str] | None = None,
     ) -> OutcomePacket:
         if verified and decision.trunk is not None and not receipt_id:
             raise ValueError("verified external outcomes require a receipt ID")
-        edge_ids = decision.trace.path_edge_ids if decision.trace else ()
+        edge_ids = (
+            tuple(credited_edge_ids)
+            if credited_edge_ids is not None
+            else decision.trace.path_edge_ids
+            if decision.trace
+            else ()
+        )
         outcome = OutcomePacket(
             outcome_id=f"outcome:{uuid.uuid4().hex}",
             pulse_id=decision.pulse_id,

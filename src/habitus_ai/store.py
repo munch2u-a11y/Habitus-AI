@@ -8,7 +8,9 @@ from typing import Any, Iterable, Mapping, Sequence
 
 from .types import (
     ConceptNode,
+    ExperienceCycle,
     ExperienceProjection,
+    ExperienceReturn,
     ExperienceState,
     GraphEdge,
     GraphSide,
@@ -149,6 +151,32 @@ class MindStore:
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
                 );
 
+                CREATE TABLE IF NOT EXISTS experience_cycles (
+                    cycle_id TEXT PRIMARY KEY,
+                    output_record_id TEXT NOT NULL UNIQUE REFERENCES records(record_id),
+                    output_pulse_id TEXT NOT NULL,
+                    output_trunk TEXT NOT NULL,
+                    credited_edge_ids_json TEXT NOT NULL DEFAULT '[]',
+                    opened_pulse INTEGER NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'open',
+                    terminal_return_record_id TEXT REFERENCES records(record_id),
+                    closed_pulse INTEGER,
+                    metadata_json TEXT NOT NULL DEFAULT '{}'
+                );
+
+                CREATE TABLE IF NOT EXISTS experience_cycle_returns (
+                    cycle_id TEXT NOT NULL REFERENCES experience_cycles(cycle_id),
+                    record_id TEXT NOT NULL UNIQUE REFERENCES records(record_id),
+                    input_trunk TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    stability_delta REAL NOT NULL,
+                    verified INTEGER NOT NULL,
+                    terminal INTEGER NOT NULL,
+                    pulse INTEGER NOT NULL,
+                    metadata_json TEXT NOT NULL DEFAULT '{}',
+                    PRIMARY KEY (cycle_id, record_id)
+                );
+
                 CREATE TABLE IF NOT EXISTS experience_state (
                     experience_id TEXT PRIMARY KEY,
                     preference_mean REAL NOT NULL DEFAULT 0.0,
@@ -197,6 +225,10 @@ class MindStore:
                     ON experience_projections(experience_id);
                 CREATE INDEX IF NOT EXISTS idx_overlap_parent
                     ON overlap_clusters(parent_node_id, last_pulse);
+                CREATE INDEX IF NOT EXISTS idx_cycles_status_trunk
+                    ON experience_cycles(status, output_trunk, opened_pulse);
+                CREATE INDEX IF NOT EXISTS idx_cycle_returns_cycle
+                    ON experience_cycle_returns(cycle_id, pulse);
                 """
             )
 
@@ -325,6 +357,134 @@ class MindStore:
                 "INSERT OR IGNORE INTO record_links VALUES (?, ?, ?, ?)",
                 (source_record_id, relation, target_record_id, _json(dict(evidence or {}))),
             )
+
+    # -------------------------------------------------------- output-first cycle
+
+    def save_experience_cycle(self, cycle: ExperienceCycle) -> ExperienceCycle:
+        with self._lock, self.connection:
+            self.connection.execute(
+                """
+                INSERT INTO experience_cycles(
+                    cycle_id, output_record_id, output_pulse_id, output_trunk,
+                    credited_edge_ids_json, opened_pulse, status,
+                    terminal_return_record_id, closed_pulse, metadata_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    cycle.cycle_id,
+                    cycle.output_record_id,
+                    cycle.output_pulse_id,
+                    cycle.output_trunk.value,
+                    _json(cycle.credited_edge_ids),
+                    cycle.opened_pulse,
+                    cycle.status,
+                    cycle.terminal_return_record_id,
+                    cycle.closed_pulse,
+                    _json(dict(cycle.metadata)),
+                ),
+            )
+        return cycle
+
+    @staticmethod
+    def _cycle_from_row(row: sqlite3.Row) -> ExperienceCycle:
+        from .types import OutputTrunk
+
+        return ExperienceCycle(
+            cycle_id=row["cycle_id"],
+            output_record_id=row["output_record_id"],
+            output_pulse_id=row["output_pulse_id"],
+            output_trunk=OutputTrunk(row["output_trunk"]),
+            credited_edge_ids=tuple(_loads(row["credited_edge_ids_json"], [])),
+            opened_pulse=int(row["opened_pulse"]),
+            status=row["status"],
+            terminal_return_record_id=row["terminal_return_record_id"],
+            closed_pulse=(int(row["closed_pulse"]) if row["closed_pulse"] is not None else None),
+            metadata=_loads(row["metadata_json"], {}),
+        )
+
+    def get_experience_cycle(self, cycle_id: str) -> ExperienceCycle | None:
+        row = self.connection.execute(
+            "SELECT * FROM experience_cycles WHERE cycle_id = ?", (cycle_id,)
+        ).fetchone()
+        return self._cycle_from_row(row) if row else None
+
+    def list_open_experience_cycles(
+        self,
+        *,
+        output_trunk: str | None = None,
+    ) -> list[ExperienceCycle]:
+        if output_trunk is None:
+            rows = self.connection.execute(
+                """SELECT * FROM experience_cycles
+                   WHERE status = 'open' ORDER BY opened_pulse, cycle_id"""
+            ).fetchall()
+        else:
+            rows = self.connection.execute(
+                """SELECT * FROM experience_cycles
+                   WHERE status = 'open' AND output_trunk = ?
+                   ORDER BY opened_pulse, cycle_id""",
+                (str(output_trunk),),
+            ).fetchall()
+        return [self._cycle_from_row(row) for row in rows]
+
+    def add_experience_return(self, observed: ExperienceReturn) -> ExperienceCycle:
+        with self._lock, self.connection:
+            self.connection.execute(
+                """
+                INSERT INTO experience_cycle_returns(
+                    cycle_id, record_id, input_trunk, status, stability_delta,
+                    verified, terminal, pulse, metadata_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    observed.cycle_id,
+                    observed.record_id,
+                    observed.input_trunk.value,
+                    observed.status,
+                    observed.stability_delta,
+                    int(observed.verified),
+                    int(observed.terminal),
+                    observed.pulse,
+                    _json(dict(observed.metadata)),
+                ),
+            )
+            if observed.terminal:
+                self.connection.execute(
+                    """
+                    UPDATE experience_cycles
+                    SET status = 'closed', terminal_return_record_id = ?, closed_pulse = ?
+                    WHERE cycle_id = ? AND status = 'open'
+                    """,
+                    (observed.record_id, observed.pulse, observed.cycle_id),
+                )
+        cycle = self.get_experience_cycle(observed.cycle_id)
+        if cycle is None:
+            raise KeyError(f"unknown experience cycle: {observed.cycle_id}")
+        return cycle
+
+    @staticmethod
+    def _return_from_row(row: sqlite3.Row) -> ExperienceReturn:
+        from .types import InputTrunk
+
+        return ExperienceReturn(
+            cycle_id=row["cycle_id"],
+            record_id=row["record_id"],
+            input_trunk=InputTrunk(row["input_trunk"]),
+            status=row["status"],
+            stability_delta=float(row["stability_delta"]),
+            verified=bool(row["verified"]),
+            terminal=bool(row["terminal"]),
+            pulse=int(row["pulse"]),
+            metadata=_loads(row["metadata_json"], {}),
+        )
+
+    def returns_for_experience_cycle(self, cycle_id: str) -> list[ExperienceReturn]:
+        rows = self.connection.execute(
+            """SELECT * FROM experience_cycle_returns
+               WHERE cycle_id = ? ORDER BY pulse, record_id""",
+            (cycle_id,),
+        ).fetchall()
+        return [self._return_from_row(row) for row in rows]
 
     # ---------------------------------------------------------------- concepts
 

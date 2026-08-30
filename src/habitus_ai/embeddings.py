@@ -34,6 +34,34 @@ def cosine_similarity(left: Sequence[float], right: Sequence[float]) -> float:
     return dot / (left_norm * right_norm)
 
 
+def opaque_payload_embedding(
+    payload: str,
+    dimension: int,
+    *,
+    namespace: str = "sensory",
+    features: int = 64,
+) -> list[float]:
+    """Encode an exact nonverbal payload without token or word features.
+
+    The resulting direction is stable for the same payload but cryptographically
+    opaque to lexical overlap. Real sensors and tools should supply structured
+    feature vectors when neighborhood similarity matters; this is the safe
+    fallback for textual transports whose words must not enter the membrane.
+    """
+    if dimension < 16:
+        raise ValueError("embedding dimension must be at least 16")
+    vector = [0.0] * int(dimension)
+    material = f"{namespace}\0{payload}".encode("utf-8")
+    for counter in range(max(1, min(int(features), dimension))):
+        digest = hashlib.sha256(material + counter.to_bytes(4, "big")).digest()
+        index = int.from_bytes(digest[:8], "big") % dimension
+        sign = 1.0 if digest[8] & 1 else -1.0
+        magnitude = 0.5 + digest[9] / 255.0
+        vector[index] += sign * magnitude
+    norm = math.sqrt(sum(value * value for value in vector)) or 1.0
+    return [value / norm for value in vector]
+
+
 class DeterministicHashEmbedder:
     """Offline lexical embedder for reproducible tests and demonstrations.
 

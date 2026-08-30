@@ -20,7 +20,9 @@ def test_seed_topology_and_conservation_are_exact():
         assert all(mind.store.get_concept(node_id) for node_id in OUTPUT_NODE_IDS.values())
         assert len(mind.store.list_edges()) == 6 + len(PREFERENCE_NODE_IDS)
         snapshot = mind.graph.weight_snapshot(now=0.0)
-        assert sum(snapshot.global_weights.values()) == pytest.approx(1.0)
+        assert snapshot.total == pytest.approx(1.0)
+        assert snapshot.accounted_mass == pytest.approx(1.0)
+        assert snapshot.cumulative_edge_mass > snapshot.total
         assert mind.graph.validate_invariants() == []
 
 

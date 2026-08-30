@@ -2,12 +2,16 @@
 
 [![Python Version](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-31%20passed-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-71%20passed%2C%203%20optional%20skipped-brightgreen.svg)](#testing)
 [![Developer Docs](https://img.shields.io/badge/docs-Developer%20Audit-purple.svg)](DEVELOPMENT.md)
 
 **Habitus AI** (`habitus-ai`) is a lightweight, zero-external-runtime-dependency Python engine for dual-cipher, conserved-weight agentic memory and evidence-preserving RAG (Retrieval-Augmented Generation).
 
 Named after the architectural concept of *habitus* (embodied, structural dispositions learned through experience), **Habitus AI** unifies long-term memory authority, structural graph routing, and action classification into a single, elegant cognitive substrate.
+
+> This is the `experimental/six-lane-causal-membrane` branch. See
+> **[EXPERIMENT.md](EXPERIMENT.md)** for its scope, clean-clone verification,
+> causal language boundary, and evidence limits.
 
 ---
 
@@ -33,13 +37,28 @@ $$\text{travel\_time}(e) = \frac{\Delta y(e)}{\epsilon + \text{local\_probabilit
 Winning Y-paths activate visited node vaults for associative expansion, ensuring memory retrieval is guided by structural routing rather than simple keyword proximity.
 
 ### 3. Conserved Fluid Edge Weights
-Just like physical conservation laws, live edge strengths in Habitus AI sum to `1.0` both globally and locally. Reinforcing one successful route naturally optimizes competitor pathways, preventing runaway score inflation and eliminating memory drift.
+Each selected trunk receives its own mass `1.0` Y-cipher budget. Its causal connector from `SELF` remains in the trace, but is not softmaxed against the other five independent lanes. Every active node below that trunk softmaxes only its outgoing sibling edges and distributes the mass it received. Regional and per-layer totals are derived from that flow, so real competitors remain relative without letting unrelated senses or actions dilute a learned micro-habit.
 
-### 4. Two-Lane Factual Safety Rail
-- **Lane 1 (Direct Dense Rail)**: Locked top-3 dense nearest neighbors pulling immutable canonical records directly from SQLite. Crucial dates, numbers, names, paths, and negations can never be evicted by graph scores.
+### 4. Six Concurrent Flow Lanes
+`ConcurrentLaneRuntime` gives `HEAR`, `SEE`, `NOTICE`, `SPEAK`, `LOOK`, and `DO` separate FIFO queues and sequence IDs. A waiting message, model generation, or external tool does not hold a global turn lock. Short graph/SQLite commits remain serialized on their owning event-loop thread, while slow synchronous handlers run off-thread and async handlers are awaited directly. Shared concepts can still receive activation from multiple lanes without collapsing their causal traces.
+
+Only inbound language routed through `HEAR` is eligible to store word-derived
+embeddings, enter semantic crown vaults, or appear in language-facing recall.
+Textual `SEE` and `NOTICE` transports remain exactly inspectable in the immutable
+developer ledger, but receive opaque fallback vectors and grow only nonverbal
+lower concepts. Tool results and delivery receipts therefore teach consequences
+without accidentally teaching JSON, paths, receipt IDs, or status prose as words.
+
+### 5. Two-Lane Factual Safety Rail
+- **Lane 1 (Direct Dense Rail)**: Locked top-3 dense nearest neighbors over language-eligible immutable records. HEAR-learned dates, numbers, names, paths, and negations cannot be evicted by graph scores; nonverbal sensory transports remain outside this rail.
 - **Lane 2 (Graph Vault Retrieval)**: Traverses visited Y-paths $\rightarrow$ expands candidate vaults $\rightarrow$ applies hybrid Dense + BM25 reranking.
 
-### 5. Gestation & Hatching
+### 6. Gestation & Hatching
+
+The scripted gestation adapter establishes the six core trunks and configurable
+identity/taste seeds. Subsequent experience grows and reweights the graph; it
+does not regenerate a fixed personality on every launch.
+
 ---
 
 ## 📊 Why Habitus AI? (Architecture Comparison)
@@ -130,9 +149,26 @@ registry = ToolRegistry(mind)
 for tool in BUILTIN_OPERATIONAL_TOOLS:
     registry.register_tool(tool)
 
-# Execute tool and generate verified execution receipt
+# Execute one persisted output -> observed return -> SELF cycle
 receipt = registry.execute("tool:read_file", {"filepath": "README.md"})
 print("Verified:", receipt.verified, "| Output size:", receipt.output["size_bytes"])
+print("Causal cycle:", receipt.cycle_id, "| Return:", receipt.return_record_id)
+```
+
+For independent intake and action scheduling:
+
+```python
+import asyncio
+from habitus_ai import ConcurrentLaneRuntime, InputTrunk
+
+async def pulse():
+    async with ConcurrentLaneRuntime(mind) as lanes:
+        seen, acted = await asyncio.gather(
+            lanes.ingest("tool return", trunk=InputTrunk.SEE),
+            lanes.execute_tool(registry, "tool:read_file", {"filepath": "README.md"}),
+        )
+
+asyncio.run(pulse())
 ```
 
 #### 💡 Custom Tools & How "Skills" Form Naturally
@@ -140,7 +176,18 @@ print("Verified:", receipt.verified, "| Output size:", receipt.output["size_byte
 In traditional frameworks, developers must write complex prompt catalogs and manual tool routing rules. In **Habitus AI**:
 
 - **Plug In Whatever Tools You Want**: Register any custom Python function, REST API, DB query, or system command using `ToolDefinition` bound to the appropriate motor trunk (`LOOK` for inspections, `DO` for state mutations, `SPEAK` for verbal notifications).
-- **Emergent Skills from Repetition & Reinforcement**: As your agent executes tools and receives verified receipts (`ToolReceipt`), lower-vault experience projections form overlap clusters. Over time, repeated successful tool patterns **naturally coalesce into durable learned skills** via conserved fluid weight reinforcement—without needing hardcoded skill files!
+- **Habits from Consequences**: A tool call is persisted before execution. Its structured success or error is stored as the return of that same experience, and verified stability feedback changes the exact output path that produced it. Repeated state-specific success can therefore become a durable action preference without a skill file.
+- **Inspectable Causality**: `ToolReceipt` exposes the cycle, output-record, return-record, and outcome IDs. The immutable records remain readable for development while lower graph projections carry modality, preference, and path activation.
+
+Run the sealed, non-language action curriculum with:
+
+```bash
+make -C experiments/graph_native_live embodied-nursery
+```
+
+Its controlled baseline currently tests whether opaque state paths learn five
+appropriate actions through real successes and safe errors. It is a structural
+habit-learning test, not a claim of general intelligence.
 
 ### 7. Verbal Audio Reflex Bridge (Piper TTS & STT Intake)
 
@@ -163,6 +210,14 @@ print("Verified receipt:", result["receipt"].receipt_id)
 ---
 
 ## 📚 Developer & Researcher Documentation
+
+The **[experimental engineering white paper](WHITEPAPER.md)** presents the
+architecture, equations, developmental language bridge, controlled GGUF results,
+negative controls, limitations, artifact hashes, and falsifiable next experiments.
+
+The [graph-native live experiment notes](experiments/graph_native_live/README.md)
+include the target-free outbound Y traversal, separate communication/navigation/
+action membranes, and the frozen 36-topic routing ablation.
 
 For deep technical audits, mathematical derivations, sequence workflow diagrams, and our LLM-free experimental benchmarks (language projection & reflective tool routing without an LLM), read the **[Developer & Architectural Audit (DEVELOPMENT.md)](DEVELOPMENT.md)**.
 

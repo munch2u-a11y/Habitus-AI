@@ -36,6 +36,7 @@ class RecordType(str, enum.Enum):
     NOTIFICATION = "notification"
     FACT = "fact"
     THOUGHT = "thought"
+    TOOL_CALL = "tool_call"
     TOOL_RESULT = "tool_result"
     RECEIPT = "receipt"
 
@@ -113,6 +114,37 @@ class ExperienceState:
     preference_weight: float
     observation_count: int
     last_pulse: int
+
+
+@dataclass(frozen=True)
+class ExperienceCycle:
+    """One self-originating output and the consequences observed after it."""
+
+    cycle_id: str
+    output_record_id: str
+    output_pulse_id: str
+    output_trunk: OutputTrunk
+    credited_edge_ids: tuple[str, ...]
+    opened_pulse: int
+    status: str = "open"
+    terminal_return_record_id: str | None = None
+    closed_pulse: int | None = None
+    metadata: Mapping[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class ExperienceReturn:
+    """An observed consequence causally attached to an output cycle."""
+
+    cycle_id: str
+    record_id: str
+    input_trunk: InputTrunk
+    status: str
+    stability_delta: float
+    verified: bool
+    terminal: bool
+    pulse: int
+    metadata: Mapping[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -196,6 +228,14 @@ class OutcomePacket:
     proposal_id: str | None = None
     receipt_id: str | None = None
     metadata: Mapping[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class CycleReturnResult:
+    cycle: ExperienceCycle
+    observed_return: ExperienceReturn
+    record: MemoryRecord
+    outcome: OutcomePacket
 
 
 @dataclass(frozen=True)

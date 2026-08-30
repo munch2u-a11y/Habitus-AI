@@ -2,7 +2,7 @@
 
 [![Python Version](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-31%20passed-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-71%20passed%2C%203%20optional%20skipped-brightgreen.svg)](#testing)
 
 Welcome to the **Habitus AI** Developer & Researcher Audit. This document details the 3D Folded Hourglass Toroidal geometry, Lagrangian free energy physics dynamics, sub-millisecond pure graph digital reflexes, conserved fluid probability mathematics, and experimental benchmarks of the Habitus AI cognitive substrate.
 
@@ -59,14 +59,49 @@ graph TD
 ## 3. Mathematical Foundations & Conserved Dynamics
 
 ### A. Conserved Fluid Edge Mass
-Live edge strengths in Habitus AI follow strict global and local probability conservation:
+Live edge strengths in Habitus AI use local competition and global flow conservation:
 
 $$\text{effective\_logit}(e, t) = \text{log\_strength}(e) + \text{fast\_recency}(e, t) - \text{conflict\_penalty}(e)$$
 
-$$\text{global\_weight}(e, t) = \text{softmax}\left(\frac{\text{effective\_logit}(e, t)}{T}\right), \quad \sum_{e \in \text{Edges}} \text{global\_weight}(e, t) = 1.0$$
+$$p(e\mid v,t)=\text{softmax}_{e\in\text{Outgoing}(v)}\left(\frac{\text{effective\_logit}(e,t)}{T}\right),\quad \sum_{e\in\text{Outgoing}(v)}p(e\mid v,t)=1.0$$
 
-Every non-empty local outgoing frontier at node $v$ is normalized independently:
-$$\sum_{e \in \text{Outgoing}(v)} \text{local\_probability}(e | v) = 1.0$$
+For a selected flow lane, the causal `SELF -> trunk` connector is recorded but
+does not compete with other lanes. The Y cipher begins below it with
+$M(trunk)=1$. A node distributes only the mass it received:
+
+$$M(e,t)=M(v,t)p(e\mid v,t),\qquad M(u,t)=\sum_{e:\,e\rightarrow u}M(e,t)$$
+
+Mass is therefore conserved at every active frontier. Merging branches add
+their incoming mass; terminal nodes absorb it. A combined diagnostic snapshot
+assigns half of one reporting budget to each direction, but input and output
+traversals each receive their own full sequential budget. Persistent logits are
+not globally capped, and unrelated regions do not compete unless they share an
+ancestor gate.
+
+### A.1 Six independent runtime lanes
+
+`ConcurrentLaneRuntime` maintains one FIFO worker and one monotonic sequence per
+`HEAR`, `SEE`, `NOTICE`, `SPEAK`, `LOOK`, and `DO` root. Independent workers can
+await simultaneously; there is no whole-turn mutex. Graph and SQLite mutations
+remain short, atomic event-loop-thread commits because the store connection is
+not shared with executor threads. Only external synchronous handlers are sent to
+a worker thread, between the persisted output and persisted return phases.
+
+This is concurrency rather than a claim of six-way parallel graph mutation. A
+blocked lane cannot stall another lane, while two events in the same lane retain
+FIFO causal order. Multiple lanes may converge on one shared concept, but their
+trunk-prefixed traversal receipts remain distinct.
+
+### A.2 Language membrane boundary
+
+Of the three input lanes, only `HEAR` admits word-derived embeddings and exact
+record text into semantic crown vaults and language-facing retrieval. `SEE` and
+`NOTICE` still retain an immutable raw transport for developer inspection, but
+their cognitive projection is nonverbal: a supplied structured sensory vector or
+an opaque exact-payload fallback, lower preference projections, and optional
+opaque child growth without a semantic port. This prevents tool JSON, receipt
+identifiers, filesystem paths, and notification prose from becoming accidental
+vocabulary while preserving causal evidence and habit learning.
 
 ### B. Y-Axis Travel Time Cipher
 Path selection is governed by travel time over learned structural branches rather than plain vector cosine distance:
@@ -131,7 +166,7 @@ Modern LLM agent architectures face fundamental limitations:
 ### How Habitus AI Solves All Three
 
 - **Unified Memory Authority & Agent Harness**: Habitus AI combines immutable SQLite canonical memory, structural Y-path graph routing, and single-use effector execution into a single, cohesive engine.
-- **Direct Top-3 Safety Rail**: Direct dense embeddings guarantee that crucial facts (dates, numbers, names, paths, negations) cannot be evicted by graph scores.
+- **Direct Top-3 Safety Rail**: Direct dense embeddings guarantee that crucial HEAR-language facts (dates, numbers, names, paths, negations) cannot be evicted by graph scores. Nonverbal sensory transports are deliberately ineligible.
 - **Receipt-Gated Learning**: Durable path reinforcement is strictly gated by verified external execution receipts (`ActionReceipt`). Generated text alone never mutates edge strengths.
 - **Conserved Probability Mass**: Softmax fluid weight conservation prevents runaway score accumulation and eliminates long-term memory drift.
 
@@ -181,7 +216,7 @@ Every Habitus AI deployment maintains 15 mandatory structural invariants verifie
 2. Input frontier is strictly `HEAR`, `SEE`, and `NOTICE`.
 3. Output frontier is strictly `SPEAK`, `LOOK`, and `DO`.
 4. Directional input and output paths share crown concepts and vaults.
-5. Global live edge mass sums to `1.0`.
+5. Each selected trunk-rooted live flow begins with and accounts for mass `1.0`.
 6. Every non-empty local outgoing frontier sums to `1.0`.
 7. Endpoint semantic score cannot alter Y travel time.
 8. Multi-hop expansion starts from visited Y-path nodes.

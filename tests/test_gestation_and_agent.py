@@ -85,6 +85,9 @@ def test_hatched_agent_talks_records_receipt_and_survives_restart(tmp_path):
         assert "Josh is the person I am growing alongside" in model.calls[0][0]["content"]
         assert mind.store.get_record(turn.user_record_id).record_type == RecordType.INBOUND_MESSAGE
         assert mind.store.get_record(turn.response_record_id).record_type == RecordType.OUTBOUND_MESSAGE
+        opened = mind.experience_cycle(turn.experience_id)
+        assert opened.status == "open"
+        assert opened.output_record_id == turn.response_record_id
 
         outcome = agent.acknowledge_delivery(
             turn,
@@ -92,7 +95,14 @@ def test_hatched_agent_talks_records_receipt_and_survives_restart(tmp_path):
         )
         assert outcome.verified is True
         assert mind.store.get_record("receipt:first-terminal-delivery").record_type == RecordType.RECEIPT
+        assert mind.store.get_record("receipt:first-terminal-delivery").metadata["effect"] == "speech_delivery"
+        assert mind.store.get_record("receipt:first-terminal-delivery").metadata["membrane_words"] is False
         assert mind.store.get_edge(speech_edge.edge_id).log_strength > before
+        assert mind.experience_cycle(turn.experience_id).status == "open"
+        delivery_returns = mind.store.returns_for_experience_cycle(turn.experience_id)
+        assert [(item.status, item.terminal) for item in delivery_returns] == [
+            ("delivered", False)
+        ]
         experience = mind.store.get_experience_state(turn.experience_id)
         assert experience.preference_mean == pytest.approx(0.02)
         assert all(
@@ -103,7 +113,11 @@ def test_hatched_agent_talks_records_receipt_and_survives_restart(tmp_path):
     resumed_model = ScriptedModel("Our earlier exchange is still part of my memory.")
     with BaseAgenticMemoryRAG(database) as mind:
         resumed = HatchedAgent(mind, resumed_model)
-        resumed.turn("Do you still have our earlier exchange?")
+        resumed_turn = resumed.turn("Do you still have our earlier exchange?")
+        prior_cycle = mind.experience_cycle(turn.experience_id)
+        assert prior_cycle.status == "closed"
+        assert prior_cycle.terminal_return_record_id == resumed_turn.user_record_id
+        assert mind.store.get_record(resumed_turn.user_record_id).metadata["returns_to"] == turn.response_record_id
         supplied = "\n".join(
             message["content"] for message in resumed_model.calls[0]
         )
