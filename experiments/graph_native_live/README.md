@@ -282,3 +282,98 @@ than of the sentence that triggered it.
 
 The next gate is unchanged: replace the fixed codebook with a trained projector while holding
 this native input and receipt path constant.
+
+## Fitted continuous projector
+
+The codebook is authored: `BASIS` maps each slot to three hand-picked anchor words and averages
+their token embeddings. `projector.py` replaces it with a map fitted from the mind's own records.
+
+```bash
+PYTHONPATH=src:experiments/graph_native_live python3 \
+  experiments/graph_native_live/projector.py --database MIND.sqlite
+```
+
+Features are structural: concept centroid, Layer 3 overlay, dominant preference-node vector, and
+the six valence diagnostics (3078D). Targets are the model's token-embedding row for whatever text
+each record deposited, mined from `vault_membership`. The fit is closed-form ridge — dual form
+while the mind has fewer experiences than feature dimensions — so there is no training loop and
+no dependency beyond numpy. Fitting a 71-pair corpus takes seconds, with one `lexeme_codec`
+invocation for the whole corpus.
+
+Use it in the loop with `--packet-mode projected --projector projector_runs/projector.json`.
+
+### What this establishes
+
+- A map learned from experience represents the state substantially better than the authored one:
+  held-out cosine against the true text embedding is 0.43 versus 0.14 for the codebook, winning
+  94% of held-out states, stable from lambda 0.1 to 10.
+- The improvement needs no gradient descent, no GPU, and no new runtime dependency in `src/`.
+
+### What it does not establish
+
+- Better generated language. `projected` turns still decode to the same generic output as the
+  other raw-vector modes, so the fit is a representation win, not yet a language win.
+- The cause is the target, not the fit: `lexeme_codec` returns a mean-pooled embedding, and
+  pooling a seven-token sentence collapses the row norm from ~0.9 to ~0.36 — a blurred centroid
+  is a weak steering signal, and one row is thin beside the 3-8 anchor-snapped slots `soft_basis`
+  emits.
+
+The next gate is per-token targets: predict k rows against the actual token-embedding sequence
+instead of its mean. That stays closed-form ridge with a wider Y, and it needs a per-token output
+mode in `lexeme_codec`.
+
+## Per-concept vocabulary projection
+
+Regressing onto pooled sentence embeddings caps out, because pooling blurs the target. The
+per-concept form uses the granularity the substrate actually has — one row per crown concept —
+and learns each concept's anchors instead of authoring them.
+
+```bash
+PYTHONPATH=src:experiments/graph_native_live python3 \
+  experiments/graph_native_live/projector.py --mode concept --embedder native \
+  --database accelerated_gestation_runs/MIND.sqlite
+```
+
+Records are grouped by crown concept, scored by tf-idf, and any word appearing in more than 10%
+of concepts is dropped before scoring — a developmental curriculum is templated, so frame
+vocabulary describes the curriculum rather than any concept. The survivors are embedded with a
+leading space and averaged into one direction per concept; the fit maps structural state onto
+that direction; `lexeme_codec nearest` decodes predictions back to words.
+
+### What this establishes
+
+- **A graph state reads out as its own vocabulary.** On a gestated mind, 39 of 43 lexical
+  concepts (91%) decode to one of their own discriminative words, most to all three:
+  `[files, hold, named]`, `[confidence, capability, success]`, `[curiosity, investigation, invites]`.
+- The anchors are learned, not authored. Nobody wrote "files/hold/named" for that node; tf-idf
+  over its own experiences did.
+- Dropping the ubiquity cutoff from 0.25 to 0.10 removes all 16 template-contaminated concepts
+  and lifts accuracy from 81% to 91%, saturating below that.
+
+### What it does not establish
+
+- **Half the crown is unreachable this way.** Of 86 crown concepts, 43 are `child:auto:*` nodes
+  stored with a zero embedding by design. Their predictions land at the origin and decode to
+  nothing. That is the architecture's own invariant working as specified, not a projector bug.
+- **Unseen concepts do not generalize.** Held out as whole concepts, predicted directions reach
+  only 0.14-0.18 cosine: 86 samples in 3078 dimensions cannot learn to lexicalize a concept the
+  mind never lexicalized.
+- Decoding to the right words is not the same as generating fluent speech from them. This shows
+  the direction is correct, not that the sentence will be.
+
+## GPU offload
+
+The adapter loads every ggml backend it finds, including the accelerator subdirectories that ship
+with Ollama, and honours `HABITUS_NATIVE_GPU_LAYERS`:
+
+```bash
+HABITUS_NATIVE_GPU_LAYERS=99 make -C experiments/graph_native_live live
+```
+
+On a Radeon 780M (RADV Phoenix, uma, fp16, KHR_coopmat, 23 GB visible) all 28 layers offload
+through Vulkan for about 25% — 50 tok/s CPU against 63 tok/s Vulkan on this 0.6B model, where
+load time dominates. ROCm loads but detects no capable device: gfx1103 needs
+`HSA_OVERRIDE_GFX_VERSION` and a userspace the shipped build does not provide.
+
+The default stays CPU. Backend choice changes float ordering and therefore generated text, and
+byte-reproducibility is worth more than 25% here.

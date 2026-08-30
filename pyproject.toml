@@ -13,7 +13,9 @@ authors = [{name = "HUMAN Project"}]
 dependencies = []
 
 [project.optional-dependencies]
-test = ["pytest>=8"]
+# numpy is used only by the experimental projector in experiments/graph_native_live;
+# the packaged engine in src/ remains dependency-free.
+test = ["pytest>=8", "numpy>=1.26"]
 vector-stores = ["chromadb", "pinecone-client", "psycopg[binary]", "pgvector"]
 
 [project.scripts]

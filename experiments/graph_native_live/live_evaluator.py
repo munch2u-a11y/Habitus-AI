@@ -324,8 +324,9 @@ class EvaluatorConfig:
     skip_think: bool = True
     temperature: float = 1.0
     learning_rate: float = 0.35
-    packet_mode: str = "lexical_membrane"  # "lexical_membrane" | "opaque_topological" | "soft_basis"
+    packet_mode: str = "lexical_membrane"  # "lexical_membrane" | "opaque_topological" | "soft_basis" | "projected"
     enforce_zero_leakage: bool = True
+    projector_path: Path | None = None  # required for packet_mode="projected"
 
 
 @dataclass
@@ -384,6 +385,7 @@ def synthesize_cognitive_packet(
     user_text: str = "",
     history: Sequence[dict[str, Any]] | None = None,
     source_id: str = "",
+    projector_fit: Any | None = None,
 ) -> tuple[int, str, dict[str, Any]]:
     """Synthesize 1024D vector packet and enforce zero-prompt leakage invariant."""
     packet_path.parent.mkdir(parents=True, exist_ok=True)
@@ -422,6 +424,28 @@ def synthesize_cognitive_packet(
             slot: value for slot, value in valence_slots.items()
         }
         metadata["valence_diagnostics"] = valence_diagnostics
+
+    elif mode == "projected":
+        # A map fitted from this mind's own experience replaces the authored codebook.
+        # See experiments/graph_native_live/projector.py.
+        import projector as graph_projector
+
+        if projector_fit is None:
+            raise RuntimeError("packet_mode='projected' requires a fitted projector")
+        features = graph_projector.state_features(
+            mind,
+            target_concept_id,
+            source_id=source_id,
+            trunk=recall.packet.input_trunk.value,
+        )
+        row = [float(v) for v in projector_fit.predict(features)]
+        opaque_skeleton.write_packet(packet_path, [row])
+        row_count = 1
+        metadata["projector"] = {
+            "samples": projector_fit.samples,
+            "solver": projector_fit.solver,
+            "ridge_lambda": projector_fit.ridge_lambda,
+        }
 
     elif mode == "opaque_topological":
         if target_concept_id is None:
@@ -583,12 +607,23 @@ class LiveEvaluator:
         )
         self.history: list[TurnTelemetry] = []
         self._last_output_trace: TraversalTrace | None = None
+        self._projector = self._load_projector()
         self._ensure_prerequisites()
 
     def _ensure_prerequisites(self) -> None:
         """Seed canonical concept crown and ensure directory exists."""
         self.config.run_directory.mkdir(parents=True, exist_ok=True)
         live_tester.ensure_seed(self.mind)
+
+    def _load_projector(self) -> Any | None:
+        """Load the fitted graph-to-embedding map, if this evaluator uses one."""
+        if self.config.packet_mode != "projected":
+            return None
+        if self.config.projector_path is None:
+            raise RuntimeError("packet_mode='projected' requires EvaluatorConfig.projector_path")
+        import projector as graph_projector
+
+        return graph_projector.load_projector(self.config.projector_path)
 
     def step(
         self,
@@ -729,6 +764,7 @@ class LiveEvaluator:
             user_text=stimulus_text,
             history=history_events,
             source_id=source_id,
+            projector_fit=self._projector,
         )
 
         # 6. Native GGUF Soft-Input Generation
@@ -1013,8 +1049,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--source-id", type=str, default="human")
     parser.add_argument(
         "--packet-mode",
-        choices=["lexical_membrane", "opaque_topological", "soft_basis"],
+        choices=["lexical_membrane", "opaque_topological", "soft_basis", "projected"],
         default="lexical_membrane",
+    )
+    parser.add_argument(
+        "--projector",
+        type=Path,
+        default=None,
+        help="fitted projector JSON, required by --packet-mode projected",
     )
     parser.add_argument("--stability-delta", type=float, default=0.5)
     parser.add_argument("--max-tokens", type=int, default=256)
@@ -1037,6 +1079,7 @@ def main() -> int:
         seed=args.seed,
         skip_think=not args.no_skip_think,
         packet_mode=args.packet_mode,
+        projector_path=args.projector,
     )
 
     with LiveEvaluator(config) as evaluator:

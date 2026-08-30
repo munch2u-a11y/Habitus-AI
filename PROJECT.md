@@ -24,6 +24,7 @@ Habitus-AI couples a dual-cipher conserved-weight agentic memory substrate (Hour
 | M7 | Adversarial Bounds & Deceptive Steering | Implement test_adversarial_cognitive_bounds.py for false-positive rejection & self-preservation steering | M6 | DONE |
 | M8 | Complete Test Suite Integrity & Victory Audit | Run 100% pytest suite, adversarial verification, and victory forensic audit | M7 | DONE |
 | M9 | Affinity Language Readout | Project habitual preference state onto `affinity`/`caution`/`withhold` basis slots so plain language tracks learned stance | M8 | DONE |
+| M10 | Fitted Continuous Projector | Replace the authored anchor codebook with a ridge-fitted graph-to-embedding map; optional GPU offload | M9 | DONE |
 
 
 

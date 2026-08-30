@@ -357,9 +357,28 @@ int main(int argc, char ** argv) {
         const Packet packet = load_packet(packet_path);
         BackendGuard backend;
         ggml_backend_load_all_from_path(backend_dir.c_str());
+        // Ollama ships accelerator backends in subdirectories, so the CPU-only
+        // top level is not enough to offload.  Load whichever ones exist.
+        if (const char * gpu_backend_dir = std::getenv("HABITUS_NATIVE_GPU_BACKEND_DIR")) {
+            ggml_backend_load_all_from_path(gpu_backend_dir);
+        } else {
+            for (const char * candidate : {"/vulkan", "/rocm_v7_2"}) {
+                ggml_backend_load_all_from_path((backend_dir + candidate).c_str());
+            }
+        }
 
         llama_model_params model_params = llama_model_default_params();
+        // CPU by default so results stay byte-reproducible across machines.  Set
+        // HABITUS_NATIVE_GPU_LAYERS to offload onto whichever ggml backend
+        // ggml_backend_load_all_from_path found (Vulkan / ROCm / CUDA).
         model_params.n_gpu_layers = 0;
+        if (const char * gpu_layers_env = std::getenv("HABITUS_NATIVE_GPU_LAYERS")) {
+            try {
+                model_params.n_gpu_layers = std::stoi(gpu_layers_env);
+            } catch (const std::exception &) {
+                throw std::runtime_error("HABITUS_NATIVE_GPU_LAYERS must be an integer");
+            }
+        }
         ModelGuard model{llama_model_load_from_file(model_path.c_str(), model_params)};
         if (!model.ptr) {
             throw std::runtime_error("llama_model_load_from_file failed");

@@ -219,7 +219,8 @@ A turn compiles to a `.packet` file in one of three modes:
   preference-node vector, then membrane fibers;
 - `opaque_topological`: 4 rows encoding input, edge, temporal and output state;
 - `soft_basis`: named basis slots with bounded activations, resolved to token-embedding anchors
-  by the native runner.
+  by the native runner;
+- `projected`: a single row predicted by a fitted graph-to-embedding map (see below).
 
 The invariant across all three: **no user text, memory string, or persona token may appear in
 the packet or in the model's context.** `verify_zero_prompt_leakage()` enforces it
@@ -248,6 +249,23 @@ sustained conflict penalty steers output toward declining rather than complying.
 The C++ `BASIS` table in `native/graph_soft_generator.cpp` is the authoritative anchor map;
 `RESERVED_BASIS_SLOTS` in `live_evaluator.py` must stay in sync with it, and the test suite
 imports that set rather than duplicating it.
+
+### Fitted projector
+
+The codebook is authored: each slot averages three hand-picked token-embedding anchors. A fitted
+alternative learns the map from the mind's own records — `projector.py` regresses structural
+state features onto the model's embedding of the text each record deposited, closed-form ridge,
+no training loop. On held-out states it aligns roughly three times better than the codebook
+(cosine 0.43 vs 0.14). It is selectable as `packet_mode="projected"`.
+
+Two target granularities exist. Against pooled record text the fit improves the representation but
+not the generated language, because pooling blurs the target. Against **per-concept discriminative
+vocabulary** — each concept's words scored by tf-idf over the concept corpus, with curriculum
+template vocabulary dropped — a state decodes back through the model's vocabulary projection to
+its own words for 91% of lexical concepts. Concepts stored with a zero embedding, which the
+architecture requires of opaque children, have no lexical direction and decode to nothing. Both facts are recorded in
+`GGUF_EXPERIMENTAL_ADAPTER.md`; neither changes any invariant, since the emitted rows are floats
+calibrated to the same embedding-norm shell as every other packet.
 
 ### Closed-loop recirculation
 

@@ -22,6 +22,8 @@
 | F7 | Zero-Prompt Leakage Invariant | R2 / R3 / AC | `verify_zero_prompt_leakage()` across `lexical_membrane`, `opaque_topological`, `soft_basis`; forensic byte inspection in every challenger suite |
 | F8 | Affinity Language Readout | M9 / R2 | `source_affinity_state()`, `membrane_preference_polarity()`, `preference_valence_activations()`, `BASIS` anchors in `graph_soft_generator.cpp`; `TestAffinityLanguageReadout` |
 | F9 | Native Boundary Integrity | M9 | Offline fallback may never masquerade as real inference; `test_native_generation_is_not_silently_mocked` |
+| F10 | Fitted Continuous Projector | M10 | `projector.py` ridge fit, structural features, corpus mining, codebook comparison; `tests/test_projector.py` |
+| F11 | State → Words Round Trip | M10 | Per-concept discriminative targets, template-vocabulary rejection, `lexeme_codec nearest` decode; `TestConceptVocabularyTargets`, `TestStateToWordsRoundTrip` |
 
 ## Suite Map
 
@@ -34,12 +36,13 @@
 | `test_cognitive_conversability.py` | M5: closed loop, membrane conservation, evaluator API/CLI |
 | `test_user_affinity_gestation.py` | M6 + M9: differential gestation, crystallization, valence readout |
 | `test_adversarial_cognitive_bounds.py` | M7 + M9: deceptive/avoidant steering, anti-echo, boundary integrity |
+| `test_projector.py` | M10: ridge fit determinism, structural features, held-out comparison against the codebook, state → words round trip |
 | `test_m1_adversarial_challenge.py`, `test_challenger_m*.py` | Independent adversarial challenge suites per milestone |
 
 ## Test Execution Commands
 
 ```bash
-# Full suite — 407 tests, ~14 minutes
+# Full suite — 421 tests, ~14 minutes
 PYTHONPATH=src:experiments/graph_native_live python3 -m pytest -o addopts= -q tests/
 
 # Targeted requirement suites
@@ -73,6 +76,8 @@ victory audit mid-run — see `.agents/victory_auditor_m8/audit_report.md`.
 | Native binaries | `experiments/graph_native_live/native/{graph_soft_generator,lexeme_codec}` | Same as above; rebuild with `make -C experiments/graph_native_live/native all` |
 | llama.cpp headers | `/tmp/llama.cpp-b9509/include`, `.../ggml/include` | Native build fails; override with `LLAMA_CPP_SOURCE=` |
 | llama runtime | `/usr/local/lib/ollama` (`libllama.so`, `libggml*.so`) | Link/run fails; override with `OLLAMA_LIB_DIR=` |
+| GPU backends | `<runtime>/vulkan`, `<runtime>/rocm_v7_2` | CPU only; opt in with `HABITUS_NATIVE_GPU_LAYERS`, override the dir with `HABITUS_NATIVE_GPU_BACKEND_DIR` |
+| numpy | any install | `tests/test_projector.py` skips; `projector.py` is unusable |
 
 The offline fallback keeps graph, packet and zero-leakage coverage intact, but
 `test_native_generation_is_not_silently_mocked` fails if the fallback is used while the real
@@ -80,5 +85,5 @@ assets are present — so a green suite on this machine always means real infere
 
 ## Current State
 
-`experimental/gguf-adapter` @ `43f4590` — **407 passed, 0 failed** in 826 s, single foreground
-process, native adapter and GGUF present.
+`experimental/gguf-adapter` — **421 passed, 0 failed**, single foreground process, native adapter
+and GGUF present.

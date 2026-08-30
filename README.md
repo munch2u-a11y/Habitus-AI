@@ -25,7 +25,8 @@ prompt, Habitus AI writes 1024-dimensional continuous activation vectors straigh
 | Continuous cognitive loop & live evaluator | [`experiments/graph_native_live/live_evaluator.py`](experiments/graph_native_live/live_evaluator.py) |
 | Gestation, nursery & reverse-nursery pipelines | [`experiments/graph_native_live/`](experiments/graph_native_live/) |
 | Affinity language readout (`affinity` / `caution` / `withhold`) | `live_evaluator.py` + `native/graph_soft_generator.cpp` |
-| Conversability, user-affinity and adversarial-bounds suites | [`tests/`](tests/) |
+| Fitted continuous projector + state → words readout | [`experiments/graph_native_live/projector.py`](experiments/graph_native_live/projector.py) |
+| Conversability, user-affinity, adversarial-bounds and projector suites | [`tests/`](tests/) |
 
 **The one-sentence claim**: habitual preference the substrate learned through experience — not
 anything the user typed — changes what the model says. After four cooperative turns from "Josh"
@@ -169,7 +170,16 @@ python3 -m pytest -v
 PYTHONPATH=src:experiments/graph_native_live python3 -m pytest -o addopts= -q tests/
 ```
 
-Current state on `experimental/gguf-adapter`: **407 passed, 0 failed** in 826 s.
+Current state on `experimental/gguf-adapter`: **421 passed, 0 failed**.
+
+Optional GPU offload (AMD/Vulkan, NVIDIA, ROCm — whatever ggml finds):
+
+```bash
+HABITUS_NATIVE_GPU_LAYERS=99 PYTHONPATH=src:experiments/graph_native_live python3 ...
+```
+
+Worth ~25% on a Radeon 780M for this 0.6B model. The default stays CPU because backend choice
+changes float ordering and therefore generated text.
 
 ### 6. Registering Tools & Verified Receipts
 
