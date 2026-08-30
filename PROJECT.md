@@ -45,4 +45,8 @@ Habitus-AI couples a dual-cipher conserved-weight agentic memory substrate (Hour
 ## Code Layout
 - `src/habitus_ai/`: Core Habitus-AI Python engine (store, graph, topology, retrieval, tools)
 - `experiments/graph_native_live/`: Native experiment scripts, gestation pipelines, and C++ source (`native/`)
-- `tests/`: Test suite including `test_graph_native_live.py`, `test_opaque_graph_native.py`, `test_accelerated_gestation.py`, `test_nursery.py`, `test_reverse_nursery.py`
+- `tests/`: 29 suites, 407 tests. Base engine and seam (`test_graph_native_live.py`,
+  `test_opaque_graph_native.py`, `test_accelerated_gestation.py`, `test_nursery.py`,
+  `test_reverse_nursery.py`), cognitive suites (`test_cognitive_conversability.py`,
+  `test_user_affinity_gestation.py`, `test_adversarial_cognitive_bounds.py`), and per-milestone
+  challenger suites (`test_challenger_m*.py`). See `TEST_INFRA.md` for the full map.

@@ -2,12 +2,59 @@
 
 [![Python Version](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-31%20passed-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-407%20passed-brightgreen.svg)](#5-run-automated-tests)
+[![Branch](https://img.shields.io/badge/branch-experimental%2Fgguf--adapter-orange.svg)](GGUF_EXPERIMENTAL_ADAPTER.md)
 [![Developer Docs](https://img.shields.io/badge/docs-Developer%20Audit-purple.svg)](DEVELOPMENT.md)
 
 **Habitus AI** (`habitus-ai`) is a lightweight, zero-external-runtime-dependency Python engine for dual-cipher, conserved-weight agentic memory and evidence-preserving RAG (Retrieval-Augmented Generation).
 
 Named after the architectural concept of *habitus* (embodied, structural dispositions learned through experience), **Habitus AI** unifies long-term memory authority, structural graph routing, and action classification into a single, elegant cognitive substrate.
+
+---
+
+## 🧪 You are on the `experimental/gguf-adapter` branch
+
+This branch keeps the base engine intact and adds a **prompt-free seam between the memory
+substrate and a local frozen transformer**. Instead of formatting retrieved memories into a text
+prompt, Habitus AI writes 1024-dimensional continuous activation vectors straight into
+`llama.cpp`'s input embedding layer (`batch.embd`). The model never receives a user token.
+
+| What the branch adds | Where |
+| :--- | :--- |
+| Native C++ soft-input adapter for `Qwen3-0.6B-Q8_0.gguf` | [`experiments/graph_native_live/native/`](experiments/graph_native_live/native/) |
+| Continuous cognitive loop & live evaluator | [`experiments/graph_native_live/live_evaluator.py`](experiments/graph_native_live/live_evaluator.py) |
+| Gestation, nursery & reverse-nursery pipelines | [`experiments/graph_native_live/`](experiments/graph_native_live/) |
+| Affinity language readout (`affinity` / `caution` / `withhold`) | `live_evaluator.py` + `native/graph_soft_generator.cpp` |
+| Conversability, user-affinity and adversarial-bounds suites | [`tests/`](tests/) |
+
+**The one-sentence claim**: habitual preference the substrate learned through experience — not
+anything the user typed — changes what the model says. After four cooperative turns from "Josh"
+and four hostile turns from an adversarial source, the *identical* question decodes to
+friendly, relationship-affirming language for one and hedged deflection for the other.
+
+**The honest boundary**: the decoded stance is reliably *valenced* but not always fluent, and
+only `soft_basis` packets decode into consistently coherent language. Full detail, including
+what is not claimed, lives in
+**[GGUF_EXPERIMENTAL_ADAPTER.md](GGUF_EXPERIMENTAL_ADAPTER.md)**; milestone status is in
+**[PROJECT.md](PROJECT.md)**; the test map is in **[TEST_INFRA.md](TEST_INFRA.md)**.
+
+### Running the experiment
+
+```bash
+# Prerequisite: Qwen3-0.6B-Q8_0.gguf in ~/Downloads, llama.cpp headers + libllama.so available
+make -C experiments/graph_native_live/native all
+
+# One live turn — the model receives vectors, never your words
+PYTHONPATH=src:experiments/graph_native_live python3 \
+  experiments/graph_native_live/live_evaluator.py \
+  --model ~/Downloads/Qwen3-0.6B-Q8_0.gguf \
+  --mode once --stimulus-text "hello there" --source-id Josh --show-trace
+```
+
+Without the model or the compiled binary present, the evaluator falls back to a deterministic
+offline receipt so the graph, packet and zero-leakage tests still run;
+`test_native_generation_is_not_silently_mocked` makes sure that fallback can never masquerade as
+real inference when the assets *are* present.
 
 ---
 
@@ -114,8 +161,15 @@ habitus-demo
 ### 5. Run Automated Tests
 
 ```bash
+# Base engine
 python3 -m pytest -v
+
+# Everything on this branch, including the graph-native and cognitive suites.
+# Run exactly one pytest process: the native runs load a 610 MB model each turn.
+PYTHONPATH=src:experiments/graph_native_live python3 -m pytest -o addopts= -q tests/
 ```
+
+Current state on `experimental/gguf-adapter`: **407 passed, 0 failed** in 826 s.
 
 ### 6. Registering Tools & Verified Receipts
 

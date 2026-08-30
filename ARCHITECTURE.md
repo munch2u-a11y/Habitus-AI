@@ -192,6 +192,70 @@ Potential duplicate branches should eventually be joined by reversible bridges
 before any destructive merge. Destructive merging is not implemented in `0.2.0`;
 canonical evidence must never be merged merely because two vectors are close.
 
+## Structural mini-maps and the Layer 4 membrane
+
+Two structures sit above the crown and below language.
+
+A **Layer 3 structural mini-map** is a concept's local neighbourhood recorded as typed
+relations and coactivation counts. `compute_structural_overlay(concept, store_or_graph,
+dimension)` folds that neighbourhood into one deterministic L2 unit vector. The overlay is a
+function of topology alone: same graph shape, same vector, regardless of what text created it.
+
+The **Layer 4 membrane** is the global softmax over live edge logits. It is the same conserved
+mass described above, read as a distribution rather than as individual weights: which routes
+are currently admitted, and with what share. Ingress stimuli reweight it; traversal reads it.
+
+Together they give the substrate two readable surfaces — structure (what is near what) and
+admission (what is currently open) — without either surface holding natural-language payload.
+
+## Experimental: the continuous soft-input seam
+
+On `experimental/gguf-adapter` the substrate is coupled to a frozen local transformer through a
+vector-only boundary. See `GGUF_EXPERIMENTAL_ADAPTER.md` for the empirical write-up.
+
+A turn compiles to a `.packet` file in one of three modes:
+
+- `lexical_membrane`: up to 8 rows of 1024D — concept centroid, Layer 3 overlay, the dominant
+  preference-node vector, then membrane fibers;
+- `opaque_topological`: 4 rows encoding input, edge, temporal and output state;
+- `soft_basis`: named basis slots with bounded activations, resolved to token-embedding anchors
+  by the native runner.
+
+The invariant across all three: **no user text, memory string, or persona token may appear in
+the packet or in the model's context.** `verify_zero_prompt_leakage()` enforces it
+schema-aware — validating packet grammar and float finiteness, rejecting protocol header
+injection, and scanning for input words while whitelisting schema keywords so that a stimulus
+containing the word "packet" is not mistaken for a leak.
+
+### Preference valence readout
+
+The substrate can learn a stance and be unable to say it. The valence slots close that gap:
+
+```text
+experience states (preference_mean x preference_weight, per source)
+        +  PREF:*:STABLE / PREF:*:UNSTABLE edge statistics
+        ->  valence in [-1, 1]
+        ->  affinity | caution   (+ a tone companion: warm | uncertain)
+        ->  withhold, when membrane conflict penalty exceeds 0.5 under negative valence
+```
+
+`preference_valence_activations(mind, source_id=...)` returns those activations plus
+diagnostics. Every input is structural: persisted preference state and edge statistics. No
+stimulus text participates, so an expressed stance is a property of habitual memory rather than
+of the sentence that triggered it. `withhold` is how self-preservation reaches language —
+sustained conflict penalty steers output toward declining rather than complying.
+
+The C++ `BASIS` table in `native/graph_soft_generator.cpp` is the authoritative anchor map;
+`RESERVED_BASIS_SLOTS` in `live_evaluator.py` must stay in sync with it, and the test suite
+imports that set rather than duplicating it.
+
+### Closed-loop recirculation
+
+An outbound activation trace is deposited as an `OUTBOUND_MESSAGE` record and re-enters the
+next inbound pulse as a `THOUGHT` record with `source_id="self:thought"`. Ingress at the
+membrane, traversal from `SELF` outward, then the trace folded back into the following pulse —
+the loop continues without a human turn between iterations.
+
 ## Runtime flow
 
 ```text
@@ -281,6 +345,10 @@ space or dimension fails rather than silently corrupting retrieval.
 13. Lower projections contain no natural-language payload.
 14. A promoted child retains every canonical experience that justified it.
 15. Opposing preference bands cannot collapse into the same overlap cluster.
+16. A Layer 3 structural overlay is a function of topology alone and is L2 unit-norm.
+17. No user text, memory string, or persona token may reach a `.packet` or the model context.
+18. Only slots in `RESERVED_BASIS_SLOTS` may be emitted, with activations in `(0.0, 1.0]`.
+19. Valence activations derive from preference state and edge statistics, never from stimulus text.
 
 `GraphRuntime.validate_invariants()` checks the structural and conservation
 invariants at runtime. The behavioral suite separately checks routing, evidence
@@ -296,8 +364,11 @@ The base does not yet provide:
 - automatic skill or tool discovery;
 - tool execution or an authority policy;
 - model adapters beyond the small local Ollama boundary;
-- an upper-layer activation projector;
-- affect, simulated qualia, or developmental claims.
+- a trained upper-layer activation projector: the experimental seam maps activations onto
+  token-embedding anchors, which yields a reliably valenced but not always fluent stance, and
+  only `soft_basis` packets decode into consistently coherent language;
+- affect, simulated qualia, or developmental claims. A valence slot is a measured property of
+  stored preference state projected into a decoder, not a feeling.
 
 Those are optional layers. None should be allowed to hide direct evidence, mutate
 canonical history, bypass receipt verification, or turn a graph edge into a fact.

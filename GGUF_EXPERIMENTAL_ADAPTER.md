@@ -37,7 +37,7 @@ Instead of formatting retrieved memories into text prompt strings (traditional R
 * Control runs using unrelated or randomized vectors verify that topic selection is strictly driven by the continuous vector directions.
 
 ### 4. Formal Verification
-* **68/68 Tests Passing**: Verified across `test_graph_native_live.py`, `test_accelerated_gestation.py`, `test_nursery.py`, `test_reverse_nursery.py`, `test_opaque_graph_native.py`, and challenger suites.
+* **407/407 Tests Passing** (29 suites, single foreground process, 826 s): base engine, graph-native seam, cognitive conversability, user affinity, adversarial bounds, and the per-milestone challenger suites.
 * **Forensic Audit Clean**: Zero mock classes, zero prompt leakage, and strict edge-weight conservation ($\sum w = 1.0$).
 
 ---

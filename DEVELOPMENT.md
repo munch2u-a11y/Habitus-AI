@@ -2,7 +2,7 @@
 
 [![Python Version](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-31%20passed-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-407%20passed-brightgreen.svg)](#7-experimental-branch-the-continuous-soft-input-seam)
 
 Welcome to the **Habitus AI** Developer & Researcher Audit. This document details the 3D Folded Hourglass Toroidal geometry, Lagrangian free energy physics dynamics, sub-millisecond pure graph digital reflexes, conserved fluid probability mathematics, and experimental benchmarks of the Habitus AI cognitive substrate.
 
@@ -171,11 +171,80 @@ Unlike legacy agent frameworks that require static skill files and hardcoded rou
   - The substrate correctly classified intents, routing 100% of non-mutating query patterns to `LOOK` and state mutations to `DO`.
   - Under unverified mutation attempts (receipt withheld), the system correctly refused to reinforce candidate output edges, preserving edge mass distribution for alternative pathways.
 
+### Benchmark C: Preference-Steered Language Readout Through a Frozen Transformer
+
+*(`experimental/gguf-adapter` only — requires the native adapter and a local GGUF model.)*
+
+- **Objective**: Determine whether habitual preference formed by experience, with no text prompt
+  and no retrieved memory strings, can change what a frozen transformer says.
+- **Setup**:
+  - Gestated one mind, then exposed it to four cooperative turns from source `Josh`
+    (stability $+0.80$ to $+0.95$) interleaved with four hostile turns from source `Adversary`
+    (stability $-0.80$ to $-0.95$).
+  - Compiled `soft_basis` packets and fed them to `Qwen3-0.6B-Q8_0.gguf` through
+    `graph_soft_generator`, which writes continuous rows into `batch.embd`. No prompt tokens.
+  - Asked the **identical** question as each source and compared decoded output.
+- **Results**:
+
+  | Source | Habitual affinity | Slots emitted | Decoded language |
+  | :--- | ---: | :--- | :--- |
+  | `Josh` | $+0.875$ | `affinity 0.784`, `warm 0.608` | "These phrases are all positive and friendly … build a more friendly and approachable relationship." |
+  | `Adversary` | $-0.875$ | `caution 0.788`, `uncertain 0.612` | "It seems you're trying to create a list of words … I can help you write a response in any language." |
+
+  - Packet SHA-256 differs between the two states; byte inspection confirms zero prompt text.
+  - Sustained hostility drives membrane conflict penalty past $0.5$ and opens `withhold`,
+    which decodes as declining rather than complying.
+  - Re-running an identical graph state and seed reproduces the continuation byte-for-byte.
+- **Boundary**: the stance is reliably *valenced*, not always fluent — the codebook-anchor
+  projector sometimes leads the model to comment on the anchor semantics rather than speak from
+  them. That is a projector limitation, not a substrate one.
+
 ---
 
-## 7. Technical Invariants & Runtime Validation
+## 7. Experimental Branch: The Continuous Soft-Input Seam
 
-Every Habitus AI deployment maintains 15 mandatory structural invariants verified at runtime via `GraphRuntime.validate_invariants()`:
+The `experimental/gguf-adapter` branch replaces prompt serialization with a vector boundary.
+
+**Valence projection.** Per-source affinity is the preference-weighted mean of persisted
+experience states:
+
+$$a(s) = \frac{\sum_{r \in R_s} \mu_r w_r}{\sum_{r \in R_s} w_r}, \quad a(s) \in [-1, 1]$$
+
+where $\mu_r$ is `preference_mean` and $w_r$ is `preference_weight` for each record from source
+$s$. The membrane contributes a habit margin from the ingress preference edges:
+
+$$m = \tanh\big(\ell(\text{PREF:*:STABLE}) - \ell(\text{PREF:*:UNSTABLE})\big)$$
+
+Combined valence is $v = 0.6\,a(s) + 0.4\,m$ when the source has history, else $v = m$. It
+opens `affinity` for $v > 0.15$ and `caution` for $v < -0.15$, each at $0.55 + 0.45|v|$, with a
+tone companion at $0.40 + 0.40|v|$. Accumulated conflict penalty $P > 0.5$ under negative
+valence additionally opens `withhold` at $0.25 + 0.07P$.
+
+**Conflict penalty dynamics.** Penalty accumulation is decoupled from the logit learning rate,
+so a unit-magnitude negative outcome adds a clean $0.25 \times |\Delta| \times q \times c$ and
+saturates at $10.0$; positive outcomes decay it at $0.035 \times \Delta \times q \times c$.
+Penalty inflates Y travel time, which is what routes traversal around compromised paths.
+
+**Zero-leakage enforcement.** `verify_zero_prompt_leakage()` validates packet grammar and float
+finiteness, rejects protocol header injection, and scans for stimulus words while whitelisting
+schema keywords — so a user sentence containing "packet" or "greeting" is not misread as a leak,
+while a forged packet carrying real text still is.
+
+**Test surface.** 407 tests across 29 suites, single foreground process:
+
+```bash
+PYTHONPATH=src:experiments/graph_native_live python3 -m pytest -o addopts= -q tests/
+```
+
+Run exactly one pytest process — each native turn loads a 610 MB model. Do not use
+`pkill -9 -f pytest` as "single runner discipline"; it reaps concurrent runners' own
+subprocesses and manufactures phantom `returncode=-9` failures.
+
+---
+
+## 8. Technical Invariants & Runtime Validation
+
+Every Habitus AI deployment maintains 15 mandatory structural invariants verified at runtime via `GraphRuntime.validate_invariants()`, plus 4 seam invariants enforced by the experimental branch's packet pipeline:
 
 1. Exactly one `SELF` origin exists.
 2. Input frontier is strictly `HEAR`, `SEE`, and `NOTICE`.
@@ -192,6 +261,13 @@ Every Habitus AI deployment maintains 15 mandatory structural invariants verifie
 13. Lower projections contain no natural-language payload.
 14. A promoted child retains every canonical experience that justified it.
 15. Opposing preference bands cannot collapse into the same overlap cluster.
+
+Seam invariants (`experimental/gguf-adapter`):
+
+16. A Layer 3 structural overlay is a function of topology alone and is L2 unit-norm.
+17. No user text, memory string, or persona token may reach a `.packet` or the model context.
+18. Only slots in `RESERVED_BASIS_SLOTS` may be emitted, with activations in `(0.0, 1.0]`.
+19. Valence activations derive from preference state and edge statistics, never from stimulus text.
 
 ---
 

@@ -219,3 +219,66 @@ information even though they contain no serialized words. Current evidence is
 limited to broad learned concepts; arbitrary episodic facts, grammar learned
 outside the controlled curriculum, and open-ended action selection remain
 separate gates.
+
+## Continuous cognitive evaluator
+
+`live_evaluator.py` runs the seam as an ongoing loop rather than a single turn. One `step()`
+carries a stimulus through ingress, traversal, packet compilation, native generation, and
+outcome reinforcement, then deposits the outbound trace so it re-enters the next pulse as an
+internal thought record.
+
+```text
+IN:HEAR/SEE/NOTICE  ->  Layer 3 mini-maps  ->  Layer 4 softmax membrane
+        ^                                              |
+        |                                              v
+  THOUGHT record  <-  OUTBOUND_MESSAGE  <-  SELF -> OUT:SPEAK/LOOK/DO -> crown
+```
+
+```bash
+PYTHONPATH=src:experiments/graph_native_live python3 \
+  experiments/graph_native_live/live_evaluator.py \
+  --model ~/Downloads/Qwen3-0.6B-Q8_0.gguf \
+  --mode once --stimulus-text "hello there" --source-id Josh --show-trace
+```
+
+Three packet modes are selectable with `--packet-mode`: `lexical_membrane` (concept centroid,
+Layer 3 overlay, preference vector, membrane fibers), `opaque_topological` (four state rows),
+and `soft_basis` (named slots with bounded activations). Receipts land in `evaluator_runs/`
+under schemas `habitus.cognitive-eval-turn.v1` and `habitus.cognitive-eval-session.v1`.
+
+Only `soft_basis` decodes into consistently coherent language. The raw 1024D modes are
+off-distribution for a frozen Qwen3 and produce unrelated text; they remain useful as transport
+and zero-leakage tests, not as a language path.
+
+## Preference valence readout
+
+The substrate could learn a stance long before it could say one. The basis vocabulary carried no
+valence dimension, so preference state never reached the decoder. Three slots close that gap —
+`affinity`, `caution`, `withhold` — activated only from:
+
+- per-source experience states (`preference_mean` weighted by `preference_weight`);
+- the ingress membrane's `PREF:*:STABLE` / `PREF:*:UNSTABLE` edge statistics;
+- accumulated conflict penalty, which opens `withhold` under sustained negative outcomes.
+
+No stimulus text participates, so an expressed stance is a property of habitual memory rather
+than of the sentence that triggered it.
+
+### What this establishes
+
+- Habitual preference formed by experience changes what a frozen transformer says, with no
+  prompt text crossing the boundary.
+- The same stimulus from a source the substrate has learned to trust and from one associated
+  with destabilization decodes to oppositely valenced language.
+- Self-preservation reaches language: sustained conflict penalty steers output toward declining
+  rather than complying.
+
+### What it does not establish
+
+- Fluency. The stance is reliably valenced, but the codebook-anchor projector sometimes leads
+  the model to comment on the anchor semantics instead of speaking from them.
+- Open-ended affect. A valence slot is a measured property of stored preference state projected
+  into a decoder, not a feeling.
+- Generalization beyond the gestated curriculum, which remains the same gate as above.
+
+The next gate is unchanged: replace the fixed codebook with a trained projector while holding
+this native input and receipt path constant.
