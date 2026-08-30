@@ -66,7 +66,7 @@ memory; concurrent suites exhaust RAM on a 16 GB machine.
 **Do not use `pkill -9 -f pytest` / `pkill -9 -f python3`.** It was previously prescribed here as
 "single runner discipline" and it reaps the caller's *own* subprocesses whenever two agents run
 at once. That pattern produced 11 phantom `returncode=-9` suite failures and aborted the M8
-victory audit mid-run — see `.agents/victory_auditor_m8/audit_report.md`.
+victory audit mid-run: the audit's log ends after a single suite, killed by its own guard.
 
 ## Environment Prerequisites
 
