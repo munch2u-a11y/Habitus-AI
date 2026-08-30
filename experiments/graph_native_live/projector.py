@@ -468,7 +468,9 @@ def discriminative_words(
     concept_texts: dict[str, list[str]],
     *,
     top_k: int = 3,
-    minimum_length: int = 4,
+    # Three characters, not four: a taught label as short as "joy" must stay eligible.
+    # Common short words are removed by the ubiquity cutoff, not by the length floor.
+    minimum_length: int = 3,
     maximum_document_ratio: float = 0.10,
 ) -> dict[str, list[str]]:
     """Pick each concept's most distinguishing words by tf-idf over the concept corpus.
@@ -477,41 +479,45 @@ def discriminative_words(
     human writing (" thanks", " appreciate", " welcome") for gratitude, this selects the
     words that actually separate one concept's experiences from every other concept's.
     """
-    tokenized = {
+    # Score by the share of a concept's records a word appears in, not raw token count.
+    # Share x idf keeps a word that saturates one concept (100% of its records) even when it
+    # recurs elsewhere, while still discarding curriculum frame vocabulary, which saturates
+    # nearly every concept and so carries almost no inverse document weight.
+    per_concept: dict[str, list[set[str]]] = {
         concept_id: [
-            word
+            {
+                word
+                for word in re.findall(r"[A-Za-z']+", text.casefold())
+                if len(word) >= minimum_length
+            }
             for text in texts
-            for word in re.findall(r"[A-Za-z']+", text.casefold())
-            if len(word) >= minimum_length
         ]
         for concept_id, texts in concept_texts.items()
     }
     document_frequency: dict[str, int] = {}
-    for words in tokenized.values():
-        for word in set(words):
+    for record_words in per_concept.values():
+        for word in set().union(*record_words) if record_words else set():
             document_frequency[word] = document_frequency.get(word, 0) + 1
 
-    total_concepts = max(1, len(tokenized))
-    # A developmental curriculum is templated, so frame vocabulary ("broader",
-    # "coactivation") recurs across most concepts.  Anything that common describes the
-    # curriculum rather than the concept, so it is dropped outright before scoring.
+    total_concepts = max(1, len(per_concept))
     ubiquity_cutoff = max(2, int(total_concepts * maximum_document_ratio))
 
     selected: dict[str, list[str]] = {}
-    for concept_id, words in tokenized.items():
-        if not words:
+    for concept_id, record_words in per_concept.items():
+        if not record_words:
             continue
         counts: dict[str, int] = {}
-        for word in words:
-            counts[word] = counts.get(word, 0) + 1
+        for words_in_record in record_words:
+            for word in words_in_record:
+                counts[word] = counts.get(word, 0) + 1
         scored = sorted(
             (
-                (word, count)
+                (word, count / len(record_words))
                 for word, count in counts.items()
                 if document_frequency[word] <= ubiquity_cutoff
             ),
             key=lambda item: (
-                -(item[1] / len(words)) * math.log(total_concepts / document_frequency[item[0]]),
+                -item[1] * math.log(total_concepts / document_frequency[item[0]]),
                 item[0],
             ),
         )

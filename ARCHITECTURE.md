@@ -208,6 +208,14 @@ are currently admitted, and with what share. Ingress stimuli reweight it; traver
 Together they give the substrate two readable surfaces — structure (what is near what) and
 admission (what is currently open) — without either surface holding natural-language payload.
 
+A mini-map records both halves of the bicone: the preference node that promoted a concept and
+the effector trunk mirrored onto it, with relations tagged `direction="input"` or `"output"`.
+Recording one half only would leave the other unreadable, so every wiring step folds its own
+relations back into the map. This matters measurably: with maps populated, a fitted projector
+predicts a concept's vocabulary direction at 0.25 cosine from *position alone*, with the
+concept's own vector zeroed out — support that a never-lexicalized concept can inherit from the
+pathways below it.
+
 ## Experimental: the continuous soft-input seam
 
 On `experimental/gguf-adapter` the substrate is coupled to a frozen local transformer through a

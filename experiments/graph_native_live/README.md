@@ -361,6 +361,83 @@ that direction; `lexeme_codec nearest` decodes predictions back to words.
 - Decoding to the right words is not the same as generating fluent speech from them. This shows
   the direction is correct, not that the sentence will be.
 
+## Layer 3 population across all six trunks
+
+Promotion recorded only the ingress half of the bicone: every mini-map relation carried
+`direction="input"`, and `grow_assembly` accepted an `output_trunk` argument it never used, so a
+category or domain assembly was reachable only from its own members — no output traversal from
+`SELF` could admit it, and the LOOK and DO assemblies were as unreachable as the SPEAK one.
+
+`merge_structural_relations()` now folds each wiring step's relations back into the concept's
+map, and assemblies attach to their effector trunk like any other promoted pair. After
+`make gestate-fast`:
+
+- maps describing both halves: **86 / 86** (was 0 / 86)
+- relations: input 119, output 86 (was input 86, output 0)
+- effector trunks referenced: `OUT:LOOK` 18, `OUT:SPEAK` 16, `OUT:DO` 9
+
+Ingress coverage was already complete, so the map now spans all six trunks rather than the
+verbal pair alone.
+
+### What this establishes
+
+- **Position carries meaning on its own.** Zero out a concept's own vector, leaving only its
+  structural overlay and preference block, and a fitted projector still predicts its vocabulary
+  direction at 0.25 cosine — close to the 0.30 it reaches with the centroid included. Before the
+  maps were populated that number was necessarily zero: there was no structure to read.
+- Readout of known concepts goes from 91% to **100%**, train cosine 0.905 to 0.998.
+- Unseen-concept prediction roughly doubles, 0.14-0.18 to 0.28-0.30.
+- All 86 concepts now carry a non-zero overlay, including the 43 opaque children that previously
+  had no features at all.
+
+### What it does not establish
+
+- Opaque children still have no lexical centroid, so they decode to nothing directly. Whether
+  their overlay lets them inherit their parents' vocabulary is the obvious next experiment.
+- 0.30 on unseen concepts is real signal but not a working readout. Predicting the vocabulary of
+  a concept the mind has never lexicalized remains open.
+
+**Artifacts generated before the Layer 3 commit carry no maps.** Re-run `gestate-fast` rather
+than analyzing an old `.sqlite` under `accelerated_gestation_runs/`.
+
+## Grounding the curriculum in the mind
+
+**What the opaque children represent.** All 43 `child:auto:*` nodes share a cluster, and so a
+record set, with their `concept:auto:*` twin, and their discriminative vocabulary is identical in
+all 43 cases. A child is not a separate idea — it is the same concept held in nonverbal form,
+with the crown twin as its lexical port.
+
+**Is every taught word recoverable from the mind?** Of 36 topic labels, four were absent from
+every concept's vocabulary. Three distinct causes, all in the environment:
+
+- `joy` — three characters, below the scoring length floor, never eligible.
+- `evidence`, `learning` — their labels were reused inside *other* topics' descriptions
+  (`honesty` and `verifying` both described evidence), raising document frequency to 6 so the
+  label lost its own concept's ranking to rarer description words: share 1.00 / score 2.66
+  against share 0.92 / score 3.47.
+- `tests` — a genuine merge. Its 25-record concept co-hosts `evidence` (12) and `verifying` (13),
+  and only 48% of its records contain the word.
+
+The first two were fixed at the source: three descriptions rewritten so no topic borrows
+another's label, and the length floor dropped to 3. Recovery went from 32/36 to **35/36**.
+`tests` stays absent because three related topics genuinely crystallized into one node — a
+curriculum question, not a scoring one.
+
+Word selection also moved from raw token frequency to document share x idf, so a word is ranked
+by how much of a concept it covers rather than how often it repeats.
+
+### What this establishes
+
+- The mind's concepts are grounded in taught vocabulary, and where they are not, the reason is
+  identifiable and usually a curriculum defect rather than a substrate failure.
+- A label that appears in another topic's description is measurably harder for the mind to learn
+  as its own. Curriculum vocabulary should be disjoint across topics.
+
+### What it does not establish
+
+- That merged topics can be separated. Three related topics collapsing into one node with one
+  surviving name is unresolved, and is the clearest remaining developmental limitation.
+
 ## GPU offload
 
 The adapter loads every ggml backend it finds, including the accelerator subdirectories that ship

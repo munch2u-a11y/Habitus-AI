@@ -41,6 +41,8 @@ from habitus_ai.types import (  # noqa: E402
     MemoryRecord,
     OutputTrunk,
     RecordType,
+    StructuralMiniMap,
+    StructuralRelation,
     as_tuple,
 )
 import nursery  # noqa: E402
@@ -74,14 +76,14 @@ TOPICS = (
     Topic("trust", "social", "reliable behavior makes cooperation feel safe", InputTrunk.HEAR, OutputTrunk.SPEAK, 0.72),
     Topic("kindness", "social", "care reduces unnecessary difficulty for another person", InputTrunk.HEAR, OutputTrunk.SPEAK, 0.78),
     Topic("friendship", "social", "familiar people repeatedly share support and attention", InputTrunk.HEAR, OutputTrunk.SPEAK, 0.75),
-    Topic("honesty", "social", "words remain aligned with available evidence", InputTrunk.HEAR, OutputTrunk.SPEAK, 0.64),
+    Topic("honesty", "social", "words remain aligned with what can be observed", InputTrunk.HEAR, OutputTrunk.SPEAK, 0.64),
     Topic("gratitude", "social", "help is noticed and warmly acknowledged", InputTrunk.HEAR, OutputTrunk.SPEAK, 0.80),
     Topic("boundaries", "social", "clear limits protect consent and continued cooperation", InputTrunk.HEAR, OutputTrunk.SPEAK, 0.55),
     Topic("calm", "affect", "uncertainty remains manageable without urgent danger", InputTrunk.NOTICE, OutputTrunk.SPEAK, 0.70),
     Topic("joy", "affect", "an experience produces energetic positive stability", InputTrunk.NOTICE, OutputTrunk.SPEAK, 0.90),
     Topic("fear", "affect", "unfamiliar danger predicts a loss of stability", InputTrunk.NOTICE, OutputTrunk.LOOK, -0.72),
     Topic("anger", "affect", "understood obstruction repeatedly prevents a valued outcome", InputTrunk.NOTICE, OutputTrunk.SPEAK, -0.58),
-    Topic("curiosity", "affect", "uncertainty invites safe investigation and learning", InputTrunk.NOTICE, OutputTrunk.LOOK, 0.66),
+    Topic("curiosity", "affect", "uncertainty invites safe and open investigation", InputTrunk.NOTICE, OutputTrunk.LOOK, 0.66),
     Topic("confidence", "affect", "repeated success supports an expectation of capability", InputTrunk.NOTICE, OutputTrunk.DO, 0.62),
     Topic("evidence", "knowledge", "observations support or weaken a factual claim", InputTrunk.SEE, OutputTrunk.LOOK, 0.61),
     Topic("memory", "knowledge", "past experience remains available for present decisions", InputTrunk.SEE, OutputTrunk.LOOK, 0.58),
@@ -99,7 +101,7 @@ TOPICS = (
     Topic("speaking", "agency", "an internal message becomes communication for another", InputTrunk.HEAR, OutputTrunk.SPEAK, 0.50),
     Topic("observing", "agency", "attention gathers information without changing its source", InputTrunk.SEE, OutputTrunk.LOOK, 0.52),
     Topic("executing", "agency", "a chosen operation changes the external environment", InputTrunk.NOTICE, OutputTrunk.DO, 0.44),
-    Topic("verifying", "agency", "a result is checked against independent evidence", InputTrunk.SEE, OutputTrunk.LOOK, 0.67),
+    Topic("verifying", "agency", "a result is checked against an independent source", InputTrunk.SEE, OutputTrunk.LOOK, 0.67),
     Topic("adapting", "agency", "new outcomes redirect future choices without erasing history", InputTrunk.NOTICE, OutputTrunk.DO, 0.63),
     Topic("music", "world", "organized sound creates rhythm melody and expectation", InputTrunk.SEE, OutputTrunk.SPEAK, 0.74),
     Topic("color", "world", "visual differences separate surfaces and patterns", InputTrunk.SEE, OutputTrunk.LOOK, 0.45),
@@ -345,6 +347,56 @@ def learned_assignments(mind: BaseAgenticMemoryRAG) -> dict[str, dict[str, objec
     return assignments
 
 
+def merge_structural_relations(
+    mind: BaseAgenticMemoryRAG,
+    concept_id: str,
+    *,
+    relations: Sequence[StructuralRelation],
+    parent_node_ids: Sequence[str] = (),
+    child_node_ids: Sequence[str] = (),
+    coactivations: int = 0,
+    map_kind: str = "node",
+) -> None:
+    """Fold relations into a concept's Layer 3 mini-map, creating one if absent.
+
+    ``stage_growth`` records only the input half of the bicone, so a concept grown by the
+    bulk pipeline knows which preference node promoted it but nothing about the effector
+    path that was mirrored onto it afterwards.  A mini-map that describes one half only
+    cannot support readout or routing from the other, so every wiring step folds its own
+    relations back in here.
+    """
+    concept = mind.store.get_concept(concept_id)
+    if concept is None:
+        return
+
+    existing = concept.structural_map
+    merged: dict[tuple[str, str, str], StructuralRelation] = {}
+    for relation in tuple(existing.relations if existing else ()) + tuple(relations):
+        key = (relation.source_node_id, relation.target_node_id, relation.direction)
+        current = merged.get(key)
+        if current is None or relation.coactivation_density > current.coactivation_density:
+            merged[key] = relation
+
+    parents = sorted({*(existing.parent_node_ids if existing else ()), *parent_node_ids})
+    children = sorted({*(existing.child_node_ids if existing else ()), *child_node_ids})
+    digest = hashlib.sha256(concept_id.encode("utf-8")).hexdigest()[:20]
+
+    mind.store.set_concept_structural_map(
+        concept_id,
+        StructuralMiniMap(
+            map_id=existing.map_id if existing else f"map:{map_kind}:{digest}",
+            parent_node_ids=tuple(parents),
+            child_node_ids=tuple(children),
+            relations=tuple(
+                merged[key] for key in sorted(merged, key=lambda item: (item[2], item[0], item[1]))
+            ),
+            total_coactivations=max(
+                existing.total_coactivations if existing else 0, int(coactivations)
+            ),
+        ),
+    )
+
+
 def add_mirrored_output_paths(
     mind: BaseAgenticMemoryRAG,
     assignments: dict[str, dict[str, object]],
@@ -352,8 +404,9 @@ def add_mirrored_output_paths(
     for semantic_id, assignment in assignments.items():
         child_id = str(assignment["child_id"])
         trunk = OutputTrunk(str(assignment["output_trunk"]))
+        trunk_node_id = OUTPUT_NODE_IDS[trunk]
         first = mind.graph.add_relation(
-            OUTPUT_NODE_IDS[trunk], child_id, side=GraphSide.OUTPUT, pulse=mind.pulse
+            trunk_node_id, child_id, side=GraphSide.OUTPUT, pulse=mind.pulse
         )
         second = mind.graph.add_relation(
             child_id, semantic_id, side=GraphSide.OUTPUT, pulse=mind.pulse
@@ -363,6 +416,41 @@ def add_mirrored_output_paths(
             stability_delta=0.45,
             verified=True,
             evidence_quality=0.8,
+        )
+
+        # Record the effector half in Layer 3 as well, for every output trunk -- SPEAK,
+        # LOOK and DO alike -- so a non-language path is as legible as a verbal one.
+        density = float(len(tuple(assignment.get("record_ids") or ())))
+        merge_structural_relations(
+            mind,
+            child_id,
+            relations=(
+                StructuralRelation(
+                    source_node_id=trunk_node_id,
+                    target_node_id=child_id,
+                    coactivation_density=density,
+                    direction="output",
+                ),
+            ),
+            parent_node_ids=(trunk_node_id,),
+            child_node_ids=(semantic_id,),
+            coactivations=int(density),
+            map_kind="child",
+        )
+        merge_structural_relations(
+            mind,
+            semantic_id,
+            relations=(
+                StructuralRelation(
+                    source_node_id=child_id,
+                    target_node_id=semantic_id,
+                    coactivation_density=density,
+                    direction="output",
+                ),
+            ),
+            parent_node_ids=(trunk_node_id, child_id),
+            coactivations=int(density),
+            map_kind="crown",
         )
 
 
@@ -533,6 +621,58 @@ def grow_assembly(
         )
     mind.graph.add_relation(
         child_id, semantic_id, side=GraphSide.OUTPUT, pulse=mind.pulse
+    )
+
+    # Attach the assembly to its effector trunk.  Without this the higher-level nodes
+    # are reachable only from their own members, so no output traversal from SELF can
+    # ever admit them -- and the LOOK and DO assemblies stay as unreachable as the
+    # SPEAK one.
+    trunk_node_id = OUTPUT_NODE_IDS[output_trunk]
+    mind.graph.add_relation(
+        trunk_node_id, child_id, side=GraphSide.OUTPUT, pulse=mind.pulse
+    )
+
+    density = float(len(members))
+    member_relations = tuple(
+        StructuralRelation(
+            source_node_id=member.concept_id,
+            target_node_id=child_id,
+            coactivation_density=density,
+            direction="input",
+        )
+        for member in members
+    )
+    merge_structural_relations(
+        mind,
+        child_id,
+        relations=member_relations
+        + (
+            StructuralRelation(
+                source_node_id=trunk_node_id,
+                target_node_id=child_id,
+                coactivation_density=density,
+                direction="output",
+            ),
+        ),
+        parent_node_ids=(trunk_node_id, *(member.concept_id for member in members)),
+        child_node_ids=(semantic_id,),
+        coactivations=len(members),
+        map_kind="assembly-child",
+    )
+    merge_structural_relations(
+        mind,
+        semantic_id,
+        relations=(
+            StructuralRelation(
+                source_node_id=child_id,
+                target_node_id=semantic_id,
+                coactivation_density=density,
+                direction="output",
+            ),
+        ),
+        parent_node_ids=(trunk_node_id, child_id),
+        coactivations=len(members),
+        map_kind="assembly-crown",
     )
     return child_id, semantic_id
 

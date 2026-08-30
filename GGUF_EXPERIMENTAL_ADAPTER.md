@@ -138,7 +138,84 @@ direction from structural neighbourhood alone gives cosine 0.14–0.18 — barel
 has never lexicalized is a genuinely harder problem than reading out one it has. Known concepts
 are the case that matters for generation, and that case works.
 
-### 6. GPU Offload
+### 6. Layer 3 Population and What Structure Buys
+
+The bulk gestation pipeline promoted concepts and mirrored effector paths onto them, but the
+Layer 3 mini-map recorded only the ingress half: every relation carried `direction="input"`, and
+the higher-level assemblies were never attached to an effector trunk at all — `grow_assembly`
+accepted an `output_trunk` argument and never used it, so a category or domain node was
+reachable only from its own members and no output traversal from `SELF` could admit it.
+
+Both halves are now recorded. `merge_structural_relations()` folds each wiring step's relations
+back into the concept's map, and assemblies attach to `OUT:SPEAK` / `OUT:LOOK` / `OUT:DO` like
+any other promoted pair:
+
+| | before | after |
+|---|---|---|
+| Maps describing both halves | 0 / 86 | **86 / 86** |
+| Relations by direction | input 86, output 0 | input 119, **output 86** |
+| Effector trunks referenced | none | `OUT:LOOK` 18, `OUT:SPEAK` 16, `OUT:DO` 9 |
+
+Ingress coverage was already complete (`PREF:SEE` 17, `PREF:HEAR` 9, `PREF:NOTICE` 9), so the
+map now spans all six trunks rather than the verbal pair alone.
+
+**What populating the structure bought**, measured on the same corpus with the same projector:
+
+| | unpopulated maps | populated maps |
+|---|---|---|
+| Known concepts decoding to their own words | 91% | **100%** (train cosine 0.998) |
+| Unseen concepts, full features | 0.14–0.18 | **0.28–0.30** |
+| Unseen concepts, **structure only** (centroid zeroed) | 0 by construction | **0.249–0.254** |
+
+The last row is the substantive one. With the concept's own vector removed, leaving nothing but
+its position in the graph, the fitted map still predicts its vocabulary direction at 0.25 —
+close to the full-feature result. Position now carries meaning independently of content, which
+is the property a developmental substrate needs if concepts it has never lexicalized are to
+inherit support from the pathways below them. All 86 concepts now carry a non-zero overlay,
+including the 43 opaque children, which previously had no features at all.
+
+**Prior artifacts are stale.** `.sqlite` files under `accelerated_gestation_runs/` generated
+before the Layer 3 commit carry no maps at all; re-run `gestate-fast` rather than analyzing an
+old one.
+
+### 7. Grounding: Are the Taught Words Actually in the Mind?
+
+A concept is only as meaningful as the vocabulary it can be identified by, so the mind's own
+discriminative words were checked against the curriculum in both directions.
+
+**What the opaque children represent.** All 43 `child:auto:*` nodes share a cluster, and
+therefore a record set, with their `concept:auto:*` twin — and their discriminative vocabulary is
+**identical in all 43 cases**. A child is not a separate idea: it is the same concept held in
+nonverbal form, with the crown twin acting as its lexical port. Their meaning is fully
+determined; only the storage differs.
+
+**Reverse coverage: is every taught word recoverable?** Of 36 curriculum topic labels, four were
+absent from every concept's vocabulary — `evidence`, `joy`, `learning`, `tests`. An audit found
+three separate causes, all in the environment rather than the statistic:
+
+| Cause | Topics | Detail |
+|---|---|---|
+| Label below the scoring length floor | `joy` | Three characters, never eligible for selection |
+| Label reused in another topic's description | `evidence`, `learning` | `honesty` and `verifying` both described evidence, raising its document frequency to 6, so it lost its own concept's ranking (share 1.00, score 2.66) to df-2 description words (share 0.92, score 3.47) |
+| Genuine cluster merge | `tests` | 25-record concept co-hosting `evidence` (12) and `verifying` (13); only 48% of records contain "tests" |
+
+The first two were fixed at the source: three descriptions were rewritten so no topic borrows
+another's label, and the length floor dropped to 3 so a short label stays eligible (common short
+words are removed by the ubiquity cutoff, not by length). Recovery went from **32/36 to 35/36**.
+
+`tests` remains absent, and that is a developmental property rather than a defect: three
+closely-related topics genuinely crystallized into one node, and one name won. Separating them
+is a curriculum question — distinct descriptions or a tighter overlap threshold — not a scoring
+one.
+
+Selection was also switched from raw token frequency to **document share × idf**, so a word
+saturating one concept's records is ranked on how much of that concept it covers rather than how
+often it happens to repeat.
+
+Final readout on the corrected curriculum: known concepts **100%** (train cosine 0.9996), unseen
+concepts 0.30, structure-only 0.275.
+
+### 8. GPU Offload
 
 The adapter loads every ggml backend it can find and honours `HABITUS_NATIVE_GPU_LAYERS`:
 
@@ -154,7 +231,7 @@ including a load that dominates at 0.6B. ROCm loads but reports no capable devic
 **The default stays CPU.** Backend choice changes float ordering and therefore generated text, and
 byte-reproducibility across machines is worth more than 25% here.
 
-### 7. Formal Verification
+### 9. Formal Verification
 * **407/407 Tests Passing** (29 suites, single foreground process, 826 s): base engine, graph-native seam, cognitive conversability, user affinity, adversarial bounds, and the per-milestone challenger suites.
 * **Forensic Audit Clean**: Zero mock classes, zero prompt leakage, and strict edge-weight conservation ($\sum w = 1.0$).
 

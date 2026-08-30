@@ -25,6 +25,8 @@ Habitus-AI couples a dual-cipher conserved-weight agentic memory substrate (Hour
 | M8 | Complete Test Suite Integrity & Victory Audit | Run 100% pytest suite, adversarial verification, and victory forensic audit | M7 | DONE |
 | M9 | Affinity Language Readout | Project habitual preference state onto `affinity`/`caution`/`withhold` basis slots so plain language tracks learned stance | M8 | DONE |
 | M10 | Fitted Continuous Projector | Replace the authored anchor codebook with a ridge-fitted graph-to-embedding map; optional GPU offload | M9 | DONE |
+| M11 | Layer 3 Population Across All Trunks | Record both bicone halves in structural mini-maps and attach assemblies to their effector trunk, so structure alone supports readout | M10 | DONE |
+| M12 | Curriculum Grounding | Verify taught vocabulary is recoverable from the mind; remove label collisions from the developmental environment | M11 | DONE |
 
 
 
