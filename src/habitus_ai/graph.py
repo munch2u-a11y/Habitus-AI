@@ -5,7 +5,7 @@ import heapq
 import math
 import time
 from dataclasses import dataclass
-from typing import Iterable, Mapping, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 
 from .embeddings import Embedder, cosine_similarity, tokenize
 from .store import MindStore
@@ -528,9 +528,9 @@ class GraphRuntime:
                 continue
             penalty = edge.conflict_penalty
             if delta < 0.0:
-                penalty = min(10.0, penalty + abs(change) * 0.25)
-            elif penalty:
-                penalty = max(0.0, penalty - abs(change) * 0.10)
+                penalty = min(10.0, penalty + 0.25 * abs(delta) * quality * path_credit)
+            elif delta > 0.0 and penalty > 0.0:
+                penalty = max(0.0, penalty - 0.035 * delta * quality * path_credit)
             self.store.update_edge_state(
                 edge_id,
                 log_strength=edge.log_strength + change,

@@ -177,7 +177,7 @@ class TestPacketInvariants:
         soft_pkt.write_text("\n".join(lines) + "\n", encoding="ascii")
         
         # Parse and verify invariants
-        parsed_lines = [l.strip() for l in soft_pkt.read_text().splitlines() if l.strip()]
+        parsed_lines = [line.strip() for line in soft_pkt.read_text().splitlines() if line.strip()]
         assert parsed_lines[0] == "HABITUS_SOFT_PACKET_V1"
         activations = []
         for line in parsed_lines[1:]:

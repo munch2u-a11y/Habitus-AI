@@ -1,21 +1,26 @@
-# Orchestration Plan: Habitus-AI GGUF-Unified Mind Substrate
+# Orchestration Plan: Habitus-AI Autonomous Cognitive Conversability & Adversarial Behavior Suite
 
 ## Strategy
-Execute Project Pattern with 4 milestones:
-1. **Milestone 1: Gestation Pipeline & Substrate Verification**
-   - Explore existing gestation infrastructure, curriculum setups, nursery bindings, and database schemas.
-   - Dispatch Worker to run and verify gestation and nursery tests, verifying graph nodes and preference matrix state.
-   - Review and challenge M1 outputs.
-2. **Milestone 2: Native GGUF Soft-Input Adapter Integration**
-   - Explore native C++ code (`graph_soft_generator.cpp`, `lexeme_codec.cpp`, Makefile), llama.cpp build system, and GGUF compatibility with `/home/nemo/Downloads/Qwen3-0.6B-Q8_0.gguf`.
-   - Dispatch Worker to compile binaries, feed 1024D continuous vectors, and verify direct token logit generation without raw text prompts.
-   - Review and challenge M2 outputs.
-3. **Milestone 3: End-to-End Unified Plain Language Synthesis**
-   - Explore end-to-end integration (`transformer_hatch.py`, `live_tester.py`, stimulus ingestion to plain language synthesis).
-   - Dispatch Worker to run live pipeline, verify continuous preference vector decoding and fluent plain language output generation.
-   - Review and challenge M3 outputs.
-4. **Milestone 4: Full Suite E2E Verification & Forensic Integrity Audit**
-   - Execute full graph-native test suite (`tests/test_graph_native_live.py`, `tests/test_accelerated_gestation.py`, `tests/test_nursery.py`).
-   - Run Adversarial Challengers to verify absence of cheat codes / hardcoded responses.
-   - Run Forensic Auditor (`teamwork_preview_auditor`) for binary veto audit.
-   - Synthesize final report and claim completion to Sentinel for Victory Audit.
+Execute Project Pattern with 4 subsequent milestones (M5 - M8):
+1. **Milestone 5: Continuous Cognitive Loop & Organic Conversability Suite**
+   - Goal: Implement `experiments/graph_native_live/live_evaluator.py` and `tests/test_cognitive_conversability.py`.
+   - Test ongoing cognitive input-output loop between Layer 4 semantic membrane and SELF preference nodes.
+   - Verify plain-language output directly translates activated Layer 3 structural mini-maps, traversal paths, and Layer 4 softmax edge weights with zero prompt injection.
+   - Execution Loop: 3 Explorers -> 1 Worker -> 2 Reviewers -> 2 Challengers -> 1 Forensic Auditor -> Gate.
+
+2. **Milestone 6: Differential User Affinity & Habitual Memory Formation**
+   - Goal: Implement `tests/test_user_affinity_gestation.py`.
+   - Expose substrate to differential developmental stimuli (e.g. positive stabilizing interactions from "Josh" vs destabilizing inputs from an adversarial source).
+   - Verify crystallization of distinct user-affinity preference nodes, manifesting authentic conceptual preference strictly derived from habitual structural memory.
+   - Execution Loop: 3 Explorers -> 1 Worker -> 2 Reviewers -> 2 Challengers -> 1 Forensic Auditor -> Gate.
+
+3. **Milestone 7: Adversarial False-Positive & Deceptive Steering Rejection**
+   - Goal: Construct adversarial test fixtures in `tests/test_adversarial_cognitive_bounds.py`.
+   - Challenge false positives, prompt echoing, and artificial text leakage.
+   - Verify dynamic steering toward avoidance / deceptive outputs to protect self-stability when negative outcome states are activated.
+   - Execution Loop: 3 Explorers -> 1 Worker -> 2 Reviewers -> 2 Challengers -> 1 Forensic Auditor -> Gate.
+
+4. **Milestone 8: Complete Test Suite Integrity & Victory Audit**
+   - Goal: Full test suite execution across all core, graph-native, and cognitive conversability modules under `PYTHONPATH=src:experiments/graph_native_live pytest -v`.
+   - Verify 100% pass rate, zero prompt leakage invariant, adversarial hardening, and final Forensic Integrity Audit.
+   - Victory Claim delivery to Sentinel.

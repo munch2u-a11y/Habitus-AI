@@ -69,6 +69,12 @@ const std::map<std::string, std::vector<std::string>> BASIS = {
     {"gratitude",   {" thanks", " appreciate", " welcome"}},
     {"observation", {" observe", " notice", " describe"}},
     {"action",      {" act", " execute", " complete"}},
+    // Preference-derived valence slots.  Their activations are computed from the
+    // graph's habitual preference state (Layer 2 preference nodes and Layer 4
+    // membrane weights), never from any word the user typed.
+    {"affinity",    {" trust", " friend", " glad"}},
+    {"caution",     {" cautious", " wary", " guarded"}},
+    {"withhold",    {" decline", " withhold", " refrain"}},
 };
 
 std::string json_escape(const std::string & input) {

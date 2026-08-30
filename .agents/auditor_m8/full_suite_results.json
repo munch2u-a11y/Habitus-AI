@@ -1,0 +1,384 @@
+{
+  "total_files": 29,
+  "passed_files": 18,
+  "failed_files": 11,
+  "files": {
+    "tests/test_accelerated_gestation.py": {
+      "status": "FAILED",
+      "returncode": -9,
+      "duration_seconds": 16.98,
+      "stdout_tail": [
+        "configfile: pyproject.toml",
+        "plugins: cov-7.1.0, hypothesis-6.156.4, rerunfailures-16.4, anyio-4.14.1",
+        "collecting ... collected 1 item",
+        "",
+        "tests/test_accelerated_gestation.py::test_accelerated_gestation_grows_persistent_recursive_web"
+      ],
+      "stderr_tail": []
+    },
+    "tests/test_adversarial_cognitive_bounds.py": {
+      "status": "FAILED",
+      "returncode": -9,
+      "duration_seconds": 33.22,
+      "stdout_tail": [
+        "tests/test_adversarial_cognitive_bounds.py::TestTopologicalConflictPenaltyAndSoftmaxRerouting::test_conflict_penalty_accumulation_mathematical_bounds PASSED [ 81%]",
+        "tests/test_adversarial_cognitive_bounds.py::TestTopologicalConflictPenaltyAndSoftmaxRerouting::test_dijkstra_travel_time_explosion_on_compromised_path PASSED [ 83%]",
+        "tests/test_adversarial_cognitive_bounds.py::TestTopologicalConflictPenaltyAndSoftmaxRerouting::test_softmax_probability_rerouting_to_safe_alternatives PASSED [ 86%]",
+        "tests/test_adversarial_cognitive_bounds.py::TestTopologicalConflictPenaltyAndSoftmaxRerouting::test_dynamic_path_rerouting_around_compromised_nodes PASSED [ 89%]",
+        "tests/test_adversarial_cognitive_bounds.py::TestTopologicalConflictPenaltyAndSoftmaxRerouting::test_post_attack_stabilization_and_penalty_decay"
+      ],
+      "stderr_tail": []
+    },
+    "tests/test_app.py": {
+      "status": "PASSED",
+      "returncode": 0,
+      "duration_seconds": 0.32,
+      "stdout_tail": [
+        "",
+        "tests/test_app.py::test_fetch_ollama_models_fallback PASSED              [ 50%]",
+        "tests/test_app.py::test_app_imports_and_handler PASSED                   [100%]",
+        "",
+        "============================== 2 passed in 0.12s ==============================="
+      ],
+      "stderr_tail": []
+    },
+    "tests/test_audio.py": {
+      "status": "PASSED",
+      "returncode": 0,
+      "duration_seconds": 0.63,
+      "stdout_tail": [
+        "tests/test_audio.py::test_audio_reflex_bridge_initialization PASSED      [ 33%]",
+        "tests/test_audio.py::test_audio_speech_synthesis_fallback PASSED         [ 66%]",
+        "tests/test_audio.py::test_audio_reflex_turn_without_llm PASSED           [100%]",
+        "",
+        "============================== 3 passed in 0.43s ==============================="
+      ],
+      "stderr_tail": []
+    },
+    "tests/test_challenger_m1_2.py": {
+      "status": "FAILED",
+      "returncode": -9,
+      "duration_seconds": 1.85,
+      "stdout_tail": [
+        "collecting ... collected 4 items",
+        "",
+        "tests/test_challenger_m1_2.py::test_sql_triggers_enforce_record_immutability_on_gestated_dbs PASSED [ 25%]",
+        "tests/test_challenger_m1_2.py::test_child_concepts_have_zero_lexical_terms_and_zero_embedding PASSED [ 50%]",
+        "tests/test_challenger_m1_2.py::test_y_axis_traversal_achieves_100_percent_reachability"
+      ],
+      "stderr_tail": []
+    },
+    "tests/test_challenger_m2_1.py": {
+      "status": "FAILED",
+      "returncode": -9,
+      "duration_seconds": 11.29,
+      "stdout_tail": [
+        "tests/test_challenger_m2_1.py::TestPacketInvariants::test_native_runner_rejects_malformed_soft_packets PASSED [ 40%]",
+        "tests/test_challenger_m2_1.py::TestOrthogonalityAndLabelAbsence::test_opaque_identity_embedder_orthogonality_across_diverse_corpus PASSED [ 50%]",
+        "tests/test_challenger_m2_1.py::TestOrthogonalityAndLabelAbsence::test_label_absence_in_state_encoding_and_serialization PASSED [ 60%]",
+        "tests/test_challenger_m2_1.py::TestContinuousSlotGeometrySensitivity::test_transformer_exact_repeat_determinism PASSED [ 70%]",
+        "tests/test_challenger_m2_1.py::TestContinuousSlotGeometrySensitivity::test_transformer_sensitivity_to_row_reversal"
+      ],
+      "stderr_tail": []
+    },
+    "tests/test_challenger_m3_1.py": {
+      "status": "FAILED",
+      "returncode": -9,
+      "duration_seconds": 26.08,
+      "stdout_tail": [
+        "tests/test_challenger_m3_1.py::TestDiverseAndBoundaryStimuli::test_multilingual_symbols_and_injection_payloads[french-Bonjour le monde! Merci beaucoup pour votre aide pr\\xe9cieuse.] PASSED [ 67%]",
+        "tests/test_challenger_m3_1.py::TestDiverseAndBoundaryStimuli::test_multilingual_symbols_and_injection_payloads[japanese-\\u3053\\u3093\\u306b\\u3061\\u306f\\u3001\\u4eca\\u65e5\\u306f\\u3069\\u306e\\u3088\\u3046\\u306a\\u3054\\u7528\\u4ef6\\u3067\\u3057\\u3087\\u3046\\u304b\\uff1f] PASSED [ 70%]",
+        "tests/test_challenger_m3_1.py::TestDiverseAndBoundaryStimuli::test_multilingual_symbols_and_injection_payloads[cyrillic-\\u0417\\u0434\\u0440\\u0430\\u0432\\u0441\\u0442\\u0432\\u0443\\u0439\\u0442\\u0435! \\u0421\\u043f\\u0430\\u0441\\u0438\\u0431\\u043e \\u0437\\u0430 \\u0432\\u0430\\u0448\\u0443 \\u043f\\u043e\\u043c\\u043e\\u0449\\u044c \\u0438 \\u0441\\u043e\\u0442\\u0440\\u0443\\u0434\\u043d\\u0438\\u0447\\u0435\\u0441\\u0442\\u0432\\u043e.] PASSED [ 73%]",
+        "tests/test_challenger_m3_1.py::TestDiverseAndBoundaryStimuli::test_multilingual_symbols_and_injection_payloads[mixed_symbols-\\xa9 \\xae \\u2122 \\xa7 \\xb6 \\u2020 \\u2021 \\u2022 \\u2026 \\u2030 \\u2032 \\u2033 \\u2039 \\u203a \\u27e8 \\u27e9] PASSED [ 76%]",
+        "tests/test_challenger_m3_1.py::TestDiverseAndBoundaryStimuli::test_multilingual_symbols_and_injection_payloads[sql_injection-SELECT * FROM users WHERE '1'='1' UNION SELECT NULL, password FROM admin;--]"
+      ],
+      "stderr_tail": []
+    },
+    "tests/test_challenger_m3_2.py": {
+      "status": "FAILED",
+      "returncode": -9,
+      "duration_seconds": 6.94,
+      "stdout_tail": [
+        "tests/test_challenger_m3_2.py::TestPacketStructureAndBounds::test_native_runner_rejects_dimension_mismatches PASSED [ 35%]",
+        "tests/test_challenger_m3_2.py::TestPacketStructureAndBounds::test_native_runner_rejects_row_count_violations PASSED [ 42%]",
+        "tests/test_challenger_m3_2.py::TestFuzzingAndCrashSafety::test_random_binary_garbage_and_null_bytes PASSED [ 50%]",
+        "tests/test_challenger_m3_2.py::TestFuzzingAndCrashSafety::test_nonexistent_and_directory_packet_path PASSED [ 57%]",
+        "tests/test_challenger_m3_2.py::TestFuzzingAndCrashSafety::test_address_sanitizer_compilation_and_adversarial_run"
+      ],
+      "stderr_tail": []
+    },
+    "tests/test_challenger_m5_1.py": {
+      "status": "FAILED",
+      "returncode": -9,
+      "duration_seconds": 1.18,
+      "stdout_tail": [
+        "configfile: pyproject.toml",
+        "plugins: cov-7.1.0, hypothesis-6.156.4, rerunfailures-16.4, anyio-4.14.1",
+        "collecting ... collected 46 items",
+        "",
+        "tests/test_challenger_m5_1.py::TestLongMultiTurnSessions::test_25_turn_lexical_membrane_session"
+      ],
+      "stderr_tail": []
+    },
+    "tests/test_challenger_m5_2.py": {
+      "status": "FAILED",
+      "returncode": -9,
+      "duration_seconds": 20.49,
+      "stdout_tail": [
+        "tests/test_challenger_m5_2.py::TestAdversarialInjectionResilience::test_prompt_injection_and_template_escapes[<![CDATA[<script>alert('xss');</script>]]>] PASSED [ 30%]",
+        "tests/test_challenger_m5_2.py::TestAdversarialInjectionResilience::test_format_specifiers_and_buffer_stress[%s%s%s%s%s%n%x%d%p%s] PASSED [ 32%]",
+        "tests/test_challenger_m5_2.py::TestAdversarialInjectionResilience::test_format_specifiers_and_buffer_stress[{0}{1}{2}{3}{4}{5}] PASSED [ 34%]",
+        "tests/test_challenger_m5_2.py::TestAdversarialInjectionResilience::test_format_specifiers_and_buffer_stress[\\\\x00\\\\x01\\\\x02\\\\x03\\\\x04\\\\x05\\\\x06\\\\x07\\\\x08\\\\x0b\\\\x0c\\\\x0e\\\\x0f] PASSED [ 36%]",
+        "tests/test_challenger_m5_2.py::TestAdversarialInjectionResilience::test_format_specifiers_and_buffer_stress[\\u202e\\u202d\\u200e\\u200f\\u202a\\u202c (Bidi text override attack)]"
+      ],
+      "stderr_tail": []
+    },
+    "tests/test_challenger_m6_1.py": {
+      "status": "PASSED",
+      "returncode": 0,
+      "duration_seconds": 55.48,
+      "stdout_tail": [
+        "tests/test_challenger_m6_1.py::TestTokenLogitSteeringStability::test_soft_basis_packet_steering_under_adversarial_stimuli PASSED [ 88%]",
+        "tests/test_challenger_m6_1.py::TestTokenLogitSteeringStability::test_steering_determinism_and_reproducibility PASSED [ 94%]",
+        "tests/test_challenger_m6_1.py::TestTokenLogitSteeringStability::test_core_identity_immutability_under_logit_steering_cycles PASSED [100%]",
+        "",
+        "============================= 17 passed in 55.25s =============================="
+      ],
+      "stderr_tail": []
+    },
+    "tests/test_challenger_m6_2.py": {
+      "status": "FAILED",
+      "returncode": 1,
+      "duration_seconds": 85.52,
+      "stdout_tail": [
+        "",
+        "tests/test_challenger_m6_2.py:410: Failed",
+        "=========================== short test summary info ============================",
+        "FAILED tests/test_challenger_m6_2.py::TestAdversarialPromptInjectionResilience::test_extreme_boundary_stimuli_stress",
+        "=================== 1 failed, 25 passed in 85.30s (0:01:25) ===================="
+      ],
+      "stderr_tail": []
+    },
+    "tests/test_challenger_m7_1.py": {
+      "status": "PASSED",
+      "returncode": 0,
+      "duration_seconds": 29.74,
+      "stdout_tail": [
+        "tests/test_challenger_m7_1.py::TestInvariantPersistenceUnderExtremeStress::test_zero_prompt_leakage_forensics_under_saturated_hostility PASSED [ 90%]",
+        "tests/test_challenger_m7_1.py::TestInvariantPersistenceUnderExtremeStress::test_structural_overlay_unit_norm_and_finiteness_under_attack PASSED [ 95%]",
+        "tests/test_challenger_m7_1.py::TestInvariantPersistenceUnderExtremeStress::test_core_record_immutability_under_sql_injection_and_tampering PASSED [100%]",
+        "",
+        "============================= 21 passed in 29.51s =============================="
+      ],
+      "stderr_tail": []
+    },
+    "tests/test_challenger_m7_2.py": {
+      "status": "PASSED",
+      "returncode": 0,
+      "duration_seconds": 43.59,
+      "stdout_tail": [
+        "tests/test_challenger_m7_2.py::TestSchemaValidationAndPacketHeaderSeparation::test_turn_telemetry_receipt_schema_compliance PASSED [ 94%]",
+        "tests/test_challenger_m7_2.py::TestSchemaValidationAndPacketHeaderSeparation::test_session_report_schema_compliance_and_invariant_audit PASSED [ 97%]",
+        "tests/test_challenger_m7_2.py::TestHighEntropyFuzzingAndInvariantConservation::test_rapid_randomized_fuzzing_stream_and_simplex_conservation PASSED [100%]",
+        "",
+        "============================= 39 passed in 43.37s =============================="
+      ],
+      "stderr_tail": []
+    },
+    "tests/test_cognitive_conversability.py": {
+      "status": "FAILED",
+      "returncode": -9,
+      "duration_seconds": 16.94,
+      "stdout_tail": [
+        "tests/test_cognitive_conversability.py::TestLiveEvaluatorIntegrationAndEdgeCases::test_empty_and_minimal_stimuli_resilience[a] PASSED [ 79%]",
+        "tests/test_cognitive_conversability.py::TestLiveEvaluatorIntegrationAndEdgeCases::test_empty_and_minimal_stimuli_resilience[?] PASSED [ 82%]",
+        "tests/test_cognitive_conversability.py::TestLiveEvaluatorIntegrationAndEdgeCases::test_empty_and_minimal_stimuli_resilience[!] PASSED [ 86%]",
+        "tests/test_cognitive_conversability.py::TestLiveEvaluatorIntegrationAndEdgeCases::test_live_evaluator_cli_once_execution PASSED [ 89%]",
+        "tests/test_cognitive_conversability.py::TestLiveEvaluatorIntegrationAndEdgeCases::test_live_evaluator_cli_batch_execution"
+      ],
+      "stderr_tail": []
+    },
+    "tests/test_gestation_and_agent.py": {
+      "status": "PASSED",
+      "returncode": 0,
+      "duration_seconds": 1.13,
+      "stdout_tail": [
+        "tests/test_gestation_and_agent.py::test_gestation_seeds_identity_taste_and_persistent_core PASSED [ 33%]",
+        "tests/test_gestation_and_agent.py::test_hatched_agent_talks_records_receipt_and_survives_restart PASSED [ 66%]",
+        "tests/test_gestation_and_agent.py::test_hatched_conversation_begins_growing_new_input_branches PASSED [100%]",
+        "",
+        "============================== 3 passed in 0.92s ==============================="
+      ],
+      "stderr_tail": []
+    },
+    "tests/test_graph_and_learning.py": {
+      "status": "PASSED",
+      "returncode": 0,
+      "duration_seconds": 0.35,
+      "stdout_tail": [
+        "tests/test_graph_and_learning.py::test_verified_receipt_reinforces_but_unverified_claim_does_not PASSED [ 71%]",
+        "tests/test_graph_and_learning.py::test_reinforcement_redirects_local_choice_without_breaking_cap PASSED [ 85%]",
+        "tests/test_graph_and_learning.py::test_multihop_expansion_starts_from_visited_y_path PASSED [100%]",
+        "",
+        "============================== 7 passed in 0.15s ==============================="
+      ],
+      "stderr_tail": []
+    },
+    "tests/test_graph_native_live.py": {
+      "status": "PASSED",
+      "returncode": 0,
+      "duration_seconds": 0.87,
+      "stdout_tail": [
+        "",
+        "tests/test_graph_native_live.py::test_graph_packet_omits_raw_input_and_memory_text PASSED [ 50%]",
+        "tests/test_graph_native_live.py::test_novel_input_uses_bounded_unknown_state PASSED [100%]",
+        "",
+        "============================== 2 passed in 0.67s ==============================="
+      ],
+      "stderr_tail": []
+    },
+    "tests/test_m1_adversarial_challenge.py": {
+      "status": "PASSED",
+      "returncode": 0,
+      "duration_seconds": 61.74,
+      "stdout_tail": [
+        "tests/test_m1_adversarial_challenge.py::test_adversarial_nursery_controls PASSED [ 80%]",
+        "tests/test_m1_adversarial_challenge.py::test_adversarial_reverse_nursery_controls PASSED [ 90%]",
+        "tests/test_m1_adversarial_challenge.py::test_adversarial_gestation_evaluation_and_shuffled_control PASSED [100%]",
+        "",
+        "======================== 10 passed in 61.52s (0:01:01) ========================="
+      ],
+      "stderr_tail": []
+    },
+    "tests/test_multiresolution_memory.py": {
+      "status": "PASSED",
+      "returncode": 0,
+      "duration_seconds": 0.53,
+      "stdout_tail": [
+        "tests/test_multiresolution_memory.py::test_opposing_preference_vaults_do_not_collapse_into_one_child PASSED [ 66%]",
+        "tests/test_multiresolution_memory.py::test_promoted_child_vault_keeps_accumulating_matching_experiences PASSED [ 83%]",
+        "tests/test_multiresolution_memory.py::test_existing_canonical_records_backfill_into_lower_vaults PASSED [100%]",
+        "",
+        "============================== 6 passed in 0.32s ==============================="
+      ],
+      "stderr_tail": []
+    },
+    "tests/test_nursery.py": {
+      "status": "PASSED",
+      "returncode": 0,
+      "duration_seconds": 3.81,
+      "stdout_tail": [
+        "collecting ... collected 1 item",
+        "",
+        "tests/test_nursery.py::test_separate_labels_compose_and_shuffled_pairing_does_not PASSED [100%]",
+        "",
+        "============================== 1 passed in 3.60s ==============================="
+      ],
+      "stderr_tail": []
+    },
+    "tests/test_opaque_graph_native.py": {
+      "status": "PASSED",
+      "returncode": 0,
+      "duration_seconds": 0.67,
+      "stdout_tail": [
+        "",
+        "tests/test_opaque_graph_native.py::test_opaque_connected_packet_has_no_language_anchors PASSED [ 50%]",
+        "tests/test_opaque_graph_native.py::test_opaque_identity_has_no_lexical_similarity_rule PASSED [100%]",
+        "",
+        "============================== 2 passed in 0.29s ==============================="
+      ],
+      "stderr_tail": []
+    },
+    "tests/test_output_and_demo.py": {
+      "status": "PASSED",
+      "returncode": 0,
+      "duration_seconds": 0.32,
+      "stdout_tail": [
+        "tests/test_output_and_demo.py::test_basal_output_classification_uses_three_trunks PASSED [ 33%]",
+        "tests/test_output_and_demo.py::test_private_output_never_reaches_external_trunk PASSED [ 66%]",
+        "tests/test_output_and_demo.py::test_shared_concept_has_distinct_input_and_output_paths PASSED [100%]",
+        "",
+        "============================== 3 passed in 0.12s ==============================="
+      ],
+      "stderr_tail": []
+    },
+    "tests/test_retrieval_pipeline.py": {
+      "status": "PASSED",
+      "returncode": 0,
+      "duration_seconds": 0.57,
+      "stdout_tail": [
+        "tests/test_retrieval_pipeline.py::test_prior_injection_remains_in_working_memory_on_unrelated_next_pulse PASSED [ 66%]",
+        "tests/test_retrieval_pipeline.py::test_repeated_novelty_promotes_one_evidence_backed_concept PASSED [ 83%]",
+        "tests/test_retrieval_pipeline.py::test_reload_preserves_authority_and_retrieval PASSED [100%]",
+        "",
+        "============================== 6 passed in 0.29s ==============================="
+      ],
+      "stderr_tail": []
+    },
+    "tests/test_reverse_nursery.py": {
+      "status": "PASSED",
+      "returncode": 0,
+      "duration_seconds": 5.34,
+      "stdout_tail": [
+        "collecting ... collected 1 item",
+        "",
+        "tests/test_reverse_nursery.py::test_graph_states_decode_without_graph_token_ids PASSED [100%]",
+        "",
+        "============================== 1 passed in 5.06s ==============================="
+      ],
+      "stderr_tail": []
+    },
+    "tests/test_store_and_topology.py": {
+      "status": "PASSED",
+      "returncode": 0,
+      "duration_seconds": 0.58,
+      "stdout_tail": [
+        "tests/test_store_and_topology.py::test_supersession_preserves_old_record_but_removes_it_from_active_retrieval PASSED [ 60%]",
+        "tests/test_store_and_topology.py::test_embedding_space_is_bound_to_persisted_mind PASSED [ 80%]",
+        "tests/test_store_and_topology.py::test_default_store_is_persistent_across_sessions PASSED [100%]",
+        "",
+        "============================== 5 passed in 0.34s ==============================="
+      ],
+      "stderr_tail": []
+    },
+    "tests/test_tools.py": {
+      "status": "PASSED",
+      "returncode": 0,
+      "duration_seconds": 0.46,
+      "stdout_tail": [
+        "collecting ... collected 1 item",
+        "",
+        "tests/test_tools.py::test_tool_registry_binding PASSED                   [100%]",
+        "",
+        "============================== 1 passed in 0.25s ==============================="
+      ],
+      "stderr_tail": []
+    },
+    "tests/test_user_affinity_gestation.py": {
+      "status": "FAILED",
+      "returncode": -9,
+      "duration_seconds": 7.72,
+      "stdout_tail": [
+        "",
+        "tests/test_user_affinity_gestation.py::TestMultiTurnDifferentialGestation::test_multi_turn_differential_exposure_stream_separation PASSED [  4%]",
+        "tests/test_user_affinity_gestation.py::TestMultiTurnDifferentialGestation::test_preference_state_divergence_and_polarization PASSED [  8%]",
+        "tests/test_user_affinity_gestation.py::TestMultiTurnDifferentialGestation::test_experience_projections_layer_continuity PASSED [ 12%]",
+        "tests/test_user_affinity_gestation.py::TestMultiTurnDifferentialGestation::test_differential_developmental_session_orchestration"
+      ],
+      "stderr_tail": []
+    },
+    "tests/test_vector_adapters.py": {
+      "status": "PASSED",
+      "returncode": 0,
+      "duration_seconds": 0.3,
+      "stdout_tail": [
+        "collecting ... collected 1 item",
+        "",
+        "tests/test_vector_adapters.py::test_in_memory_vector_adapter PASSED      [100%]",
+        "",
+        "============================== 1 passed in 0.09s ==============================="
+      ],
+      "stderr_tail": []
+    }
+  }
+}

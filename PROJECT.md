@@ -19,12 +19,28 @@ Habitus-AI couples a dual-cipher conserved-weight agentic memory substrate (Hour
 | M2 | Native GGUF Soft-Input Adapter | Verify C++ binary builds, continuous 1024D vector feeding to Qwen3 GGUF, and logit emission | M1 | DONE |
 | M3 | End-to-End Unified Synthesis | Execute transformer hatch & live tester pipelines from stimulus to plain language output | M2 | DONE |
 | M4 | Comprehensive E2E Verification | Execute full graph-native test suite, adversarial tests, and forensic integrity audit | M3 | DONE |
+| M5 | Continuous Cognitive Loop & Live Evaluator | Implement live_evaluator.py and test_cognitive_conversability.py for Layer 4 semantic membrane & SELF preference loop | M4 | DONE |
+| M6 | Differential User Affinity & Habitual Memory | Implement test_user_affinity_gestation.py for differential developmental stimuli & habitual memory crystallization | M5 | DONE |
+| M7 | Adversarial Bounds & Deceptive Steering | Implement test_adversarial_cognitive_bounds.py for false-positive rejection & self-preservation steering | M6 | DONE |
+| M8 | Complete Test Suite Integrity & Victory Audit | Run 100% pytest suite, adversarial verification, and victory forensic audit | M7 | DONE |
+| M9 | Affinity Language Readout | Project habitual preference state onto `affinity`/`caution`/`withhold` basis slots so plain language tracks learned stance | M8 | DONE |
+
+
 
 ## Interface Contracts
 ### Gestation Substrate ↔ Soft-Input Generator
 - Binary input: Continuous 1024D float vectors formatted into `.packet` buffers containing layer activations and categorical basis slots.
 - Execution contract: `graph_soft_generator --model /home/nemo/Downloads/Qwen3-0.6B-Q8_0.gguf --packet <path>` emits valid token logits and continuous text.
 - Output contract: Plain language decoded text matching preference state without raw user prompt injection.
+
+### Preference Membrane ↔ Valence Basis Slots
+- `affinity`, `caution`, `withhold` are activated only from persisted experience states
+  (`preference_mean` × `preference_weight` per source) and `PREF:*:STABLE` / `PREF:*:UNSTABLE`
+  edge statistics — never from stimulus text.
+- Contract: `preference_valence_activations(mind, source_id=...)` returns `(activations, diagnostics)`
+  with every slot in `RESERVED_BASIS_SLOTS` and every activation in `(0.0, 1.0]`.
+- The C++ `BASIS` table in `native/graph_soft_generator.cpp` is the authoritative anchor map;
+  `RESERVED_BASIS_SLOTS` in `live_evaluator.py` must stay in sync with it.
 
 ## Code Layout
 - `src/habitus_ai/`: Core Habitus-AI Python engine (store, graph, topology, retrieval, tools)

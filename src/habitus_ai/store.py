@@ -596,12 +596,25 @@ class MindStore:
         ).fetchone()
         return self._edge_from_row(row) if row else None
 
-    def list_edges(self, side: GraphSide | None = None, *, include_archived: bool = False) -> list[GraphEdge]:
+    def list_edges(
+        self,
+        side: GraphSide | None = None,
+        *,
+        include_archived: bool = False,
+        source_id: str | None = None,
+        target_id: str | None = None,
+    ) -> list[GraphEdge]:
         clauses: list[str] = []
         values: list[Any] = []
         if side is not None:
             clauses.append("side = ?")
             values.append(side.value)
+        if source_id is not None:
+            clauses.append("source_id = ?")
+            values.append(source_id)
+        if target_id is not None:
+            clauses.append("target_id = ?")
+            values.append(target_id)
         if not include_archived:
             clauses.append("archived = 0")
         where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
