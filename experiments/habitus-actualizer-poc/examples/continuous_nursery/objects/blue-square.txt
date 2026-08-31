@@ -1,0 +1,4 @@
+OBJECT=blue square
+SLOT=square
+FIT=matched
+RESULT=stable

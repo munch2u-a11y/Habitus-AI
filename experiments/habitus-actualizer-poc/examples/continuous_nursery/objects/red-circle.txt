@@ -1,0 +1,4 @@
+OBJECT=red circle
+SLOT=square
+FIT=mismatch
+RESULT=unstable

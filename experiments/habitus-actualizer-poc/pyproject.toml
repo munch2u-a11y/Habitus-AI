@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "habitus-actualizer"
+version = "0.1.0"
+description = "Receipt-backed concurrent workspace abilities without LLM tool calls"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.11"
+authors = [{name = "HUMAN Project"}]
+dependencies = []
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+mcp = ["mcp>=2,<3"]
+
+[project.scripts]
+habitus-actualize = "habitus_actualizer.cli:main"
+habitus-actualizer-mcp = "habitus_actualizer.mcp_adapter:main"
+habitus-agent = "habitus_actualizer.continuous_cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-q"

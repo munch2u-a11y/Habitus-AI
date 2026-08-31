@@ -1,0 +1,11 @@
+Use the integers in `data/numbers.txt` as the only input.
+
+Create a small Python program at `scripts/total.py`. When run from this workspace,
+it must read the nonempty integers from `data/numbers.txt`, write `output/result.txt`
+with exactly these two lines, and print the same two lines:
+
+count=5
+total=42
+
+Run it with `python3 scripts/total.py`, then read `output/result.txt` to verify the
+saved result. Do not hardcode the count or total in the program.
